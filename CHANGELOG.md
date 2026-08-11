@@ -66,7 +66,13 @@ binaries they ship.
   developers. Cause is visible in `mk-pkg-mpv/default.nix`: `IOS_OPTIONS`
   (`-Daudiounit=enabled`) is applied only when the os is `ios`, and the simulator
   builds under a different os value, falling through to `DISABLE_ALL_OPTIONS`.
-  **Reported, not worked around** — the check stays red.
+  **Reported, not worked around** — the check stays red, and it is now declared
+  in `manifest/engine.json` as the tracked repo divergence
+  `ios-simulator-has-no-audio-output`. The fix is a one-line idiom change in the
+  darwin fork's `mk-pkg-mpv/default.nix`, using the same
+  `[ $os == ios ] || [ $os == iossimulator ]` form that repo already uses
+  correctly in `mk-out-frameworks/default.nix:83`. It needs a rebuild and a new
+  darwin release, so it is not folded into a sync commit.
 * Everything else is green: 48 pass, 2 fail, 46 n/a (each with a reason), 24
   informational across 120 cells. Android is clean on all four ABIs — 55 exports
   all `mpv_*`, 16 KB aligned, no libass/freetype/fribidi/harfbuzz in DT_NEEDED,

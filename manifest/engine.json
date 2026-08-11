@@ -14,7 +14,10 @@
     "Every difference between the two platforms MUST be declared in the dependency's `divergence` field.",
     "`workshop verify` fails on an undeclared divergence AND on a declared one that is no longer real."
   ],
-  "platforms": ["android", "darwin"],
+  "platforms": [
+    "android",
+    "darwin"
+  ],
   "repoDivergences": [
     {
       "id": "source-integrity",
@@ -27,13 +30,22 @@
       "status": "bug",
       "ref": "rn-media task #32",
       "reason": "Android passes --enable-libxml2 for every build; darwin passes it only in `video_common_options`, so the shipped audio dylib has no libxml2 and the audio artifacts differ in linked dependencies. Tracked as a flag divergence in manifest/flags.json; recorded here because it is why libxml2's version skew matters less on darwin than the raw numbers suggest."
+    },
+    {
+      "id": "ios-simulator-has-no-audio-output",
+      "status": "bug",
+      "ref": "rn-media task #32; found by `workshop verify-artifacts` against v0.7.2-rnmedia.5",
+      "reason": "The iOS SIMULATOR slice of Mpv.xcframework is built with every audio output disabled, so libmpv cannot play audio in the Simulator. The device slice (ios-arm64) is correct. Proven by the shipped binary's own embedded meson line: `-Daudiounit=disabled -Davfoundation=disabled -Daudiotrack=disabled -Daaudio=disabled -Dcoreaudio=disabled -Dopensles=disabled`. Cause: nix/packages/mk-pkg-mpv/default.nix gates IOS_OPTIONS (-Daudiounit=enabled) on `os == oses.ios`, but the simulator builds under a THIRD os value, oses.iossimulator, so it matches neither the macos nor the ios branch and falls through to DISABLE_ALL_OPTIONS. The same repo already handles this correctly in mk-out-frameworks/default.nix:83 (`[ $os == $oses.ios ] || [ $os == $oses.iossimulator ]`), so the fix is to use that idiom in the mpv derivation too. Parity impact: Android's x86/x86_64 EMULATOR ABIs do carry audiotrack, so audio works in the Android emulator and not in the iOS Simulator \u2014 a developer-facing parity gap under CLAUDE.md. Patch 007-mpv-audiounit-shared-session is also absent from that slice as a consequence, because ao_audiounit.m is never compiled into it."
     }
   ],
   "dependencies": {
     "mpv": {
       "role": "audio-core",
       "patched": true,
-      "upstream": { "kind": "github-release", "repo": "mpv-player/mpv" },
+      "upstream": {
+        "kind": "github-release",
+        "repo": "mpv-player/mpv"
+      },
       "pins": {
         "android": {
           "version": "0.41.0",
@@ -56,7 +68,11 @@
     "ffmpeg": {
       "role": "audio-core",
       "patched": true,
-      "upstream": { "kind": "github-tags", "repo": "FFmpeg/FFmpeg", "stablePattern": "^n\\d+\\.\\d+(\\.\\d+)?$" },
+      "upstream": {
+        "kind": "github-tags",
+        "repo": "FFmpeg/FFmpeg",
+        "stablePattern": "^n\\d+\\.\\d+(\\.\\d+)?$"
+      },
       "pins": {
         "android": {
           "version": "8.1.2",
@@ -79,7 +95,11 @@
     "libplacebo": {
       "role": "audio-core",
       "patched": false,
-      "upstream": { "kind": "github-tags", "repo": "haasn/libplacebo", "stablePattern": "^v\\d+\\.\\d+\\.\\d+$" },
+      "upstream": {
+        "kind": "github-tags",
+        "repo": "haasn/libplacebo",
+        "stablePattern": "^v\\d+\\.\\d+\\.\\d+$"
+      },
       "pins": {
         "android": {
           "version": "6.338.2",
@@ -102,7 +122,11 @@
     "mbedtls": {
       "role": "audio-core",
       "patched": false,
-      "upstream": { "kind": "github-tags", "repo": "Mbed-TLS/mbedtls", "stablePattern": "^v\\d+\\.\\d+\\.\\d+$" },
+      "upstream": {
+        "kind": "github-tags",
+        "repo": "Mbed-TLS/mbedtls",
+        "stablePattern": "^v\\d+\\.\\d+\\.\\d+$"
+      },
       "pins": {
         "android": {
           "version": "3.6.1",
@@ -130,7 +154,12 @@
     "libxml2": {
       "role": "audio-core-android-only",
       "patched": false,
-      "upstream": { "kind": "gitlab-tags", "host": "gitlab.gnome.org", "project": "GNOME/libxml2", "stablePattern": "^v?\\d+\\.\\d+\\.\\d+$" },
+      "upstream": {
+        "kind": "gitlab-tags",
+        "host": "gitlab.gnome.org",
+        "project": "GNOME/libxml2",
+        "stablePattern": "^v?\\d+\\.\\d+\\.\\d+$"
+      },
       "pins": {
         "android": {
           "version": "2.10.3",
@@ -152,13 +181,16 @@
         "kind": "version",
         "status": "bug",
         "ref": "rn-media task #32",
-        "reason": "Android pins 2.10.3, darwin 2.11.5 — one release line apart, in opposite directions to the mbedTLS skew, and neither was a decision. Not previously named anywhere. Converge both on one line; the newer one unless the Android DASH/XML path regresses."
+        "reason": "Android pins 2.10.3, darwin 2.11.5 \u2014 one release line apart, in opposite directions to the mbedTLS skew, and neither was a decision. Not previously named anywhere. Converge both on one line; the newer one unless the Android DASH/XML path regresses."
       }
     },
     "fastFloat": {
       "role": "libplacebo-submodule",
       "patched": false,
-      "upstream": { "kind": "none", "reason": "pinned to the exact commit libplacebo v6.338.2 points at; it moves only when libplacebo moves" },
+      "upstream": {
+        "kind": "none",
+        "reason": "pinned to the exact commit libplacebo v6.338.2 points at; it moves only when libplacebo moves"
+      },
       "pins": {
         "darwin": {
           "version": "2b2395f9",
@@ -178,7 +210,10 @@
     "jinja": {
       "role": "libplacebo-submodule",
       "patched": false,
-      "upstream": { "kind": "none", "reason": "pinned to the exact commit libplacebo v6.338.2 points at" },
+      "upstream": {
+        "kind": "none",
+        "reason": "pinned to the exact commit libplacebo v6.338.2 points at"
+      },
       "pins": {
         "darwin": {
           "version": "b08cd4bc",
@@ -198,7 +233,10 @@
     "markupsafe": {
       "role": "libplacebo-submodule",
       "patched": false,
-      "upstream": { "kind": "none", "reason": "pinned to the exact commit libplacebo v6.338.2 points at" },
+      "upstream": {
+        "kind": "none",
+        "reason": "pinned to the exact commit libplacebo v6.338.2 points at"
+      },
       "pins": {
         "darwin": {
           "version": "c0254f0c",
@@ -218,7 +256,10 @@
     "vulkanHeaders": {
       "role": "libplacebo-submodule",
       "patched": false,
-      "upstream": { "kind": "none", "reason": "pinned to the exact commit libplacebo v6.338.2 points at" },
+      "upstream": {
+        "kind": "none",
+        "reason": "pinned to the exact commit libplacebo v6.338.2 points at"
+      },
       "pins": {
         "darwin": {
           "version": "d732b2de",
@@ -238,7 +279,10 @@
     "dav1d": {
       "role": "video-variant",
       "patched": false,
-      "upstream": { "kind": "none", "reason": "video variant only; not in the shipped audio engine" },
+      "upstream": {
+        "kind": "none",
+        "reason": "video variant only; not in the shipped audio engine"
+      },
       "pins": {
         "darwin": {
           "version": "1.2.1",
@@ -258,7 +302,10 @@
     "libass": {
       "role": "video-variant",
       "patched": true,
-      "upstream": { "kind": "none", "reason": "video variant only; stripped out of the audio engine by patch 002-remove-libass" },
+      "upstream": {
+        "kind": "none",
+        "reason": "video variant only; stripped out of the audio engine by patch 002-remove-libass"
+      },
       "pins": {
         "darwin": {
           "version": "0.17.1",
@@ -278,7 +325,10 @@
     "freetype": {
       "role": "video-variant",
       "patched": false,
-      "upstream": { "kind": "none", "reason": "libass dependency, video variant only" },
+      "upstream": {
+        "kind": "none",
+        "reason": "libass dependency, video variant only"
+      },
       "pins": {
         "darwin": {
           "version": "2.13.2",
@@ -298,7 +348,10 @@
     "fribidi": {
       "role": "video-variant",
       "patched": false,
-      "upstream": { "kind": "none", "reason": "libass dependency, video variant only" },
+      "upstream": {
+        "kind": "none",
+        "reason": "libass dependency, video variant only"
+      },
       "pins": {
         "darwin": {
           "version": "1.0.13",
@@ -318,7 +371,10 @@
     "harfbuzz": {
       "role": "video-variant",
       "patched": false,
-      "upstream": { "kind": "none", "reason": "libass dependency, video variant only" },
+      "upstream": {
+        "kind": "none",
+        "reason": "libass dependency, video variant only"
+      },
       "pins": {
         "darwin": {
           "version": "8.1.1",
@@ -338,7 +394,10 @@
     "libpng": {
       "role": "video-variant",
       "patched": false,
-      "upstream": { "kind": "none", "reason": "video variant only" },
+      "upstream": {
+        "kind": "none",
+        "reason": "video variant only"
+      },
       "pins": {
         "darwin": {
           "version": "1.6.40",
@@ -358,7 +417,10 @@
     "libpngPatch": {
       "role": "video-variant",
       "patched": false,
-      "upstream": { "kind": "none", "reason": "meson wrapdb patch tied to the libpng pin above" },
+      "upstream": {
+        "kind": "none",
+        "reason": "meson wrapdb patch tied to the libpng pin above"
+      },
       "pins": {
         "darwin": {
           "version": "1.6.40-1",
@@ -378,7 +440,10 @@
     "libogg": {
       "role": "video-variant",
       "patched": true,
-      "upstream": { "kind": "none", "reason": "encodersgpl flavour only" },
+      "upstream": {
+        "kind": "none",
+        "reason": "encodersgpl flavour only"
+      },
       "pins": {
         "darwin": {
           "version": "1.3.5",
@@ -398,7 +463,10 @@
     "libvorbis": {
       "role": "video-variant",
       "patched": true,
-      "upstream": { "kind": "none", "reason": "encodersgpl flavour only" },
+      "upstream": {
+        "kind": "none",
+        "reason": "encodersgpl flavour only"
+      },
       "pins": {
         "darwin": {
           "version": "1.3.7",
@@ -418,7 +486,10 @@
     "libvpx": {
       "role": "video-variant",
       "patched": false,
-      "upstream": { "kind": "none", "reason": "encodersgpl flavour only" },
+      "upstream": {
+        "kind": "none",
+        "reason": "encodersgpl flavour only"
+      },
       "pins": {
         "darwin": {
           "version": "1.13.0+1",
@@ -438,7 +509,10 @@
     "libx264": {
       "role": "video-variant",
       "patched": false,
-      "upstream": { "kind": "none", "reason": "encodersgpl flavour only" },
+      "upstream": {
+        "kind": "none",
+        "reason": "encodersgpl flavour only"
+      },
       "pins": {
         "darwin": {
           "version": "a8b68ebf",
@@ -458,7 +532,10 @@
     "uchardet": {
       "role": "video-variant",
       "patched": false,
-      "upstream": { "kind": "none", "reason": "video variant only" },
+      "upstream": {
+        "kind": "none",
+        "reason": "video variant only"
+      },
       "pins": {
         "darwin": {
           "version": "0.0.8",
@@ -478,7 +555,10 @@
     "fftools-ffi": {
       "role": "video-variant",
       "patched": false,
-      "upstream": { "kind": "none", "reason": "inherited from upstream libmpv-darwin-build" },
+      "upstream": {
+        "kind": "none",
+        "reason": "inherited from upstream libmpv-darwin-build"
+      },
       "pins": {
         "darwin": {
           "version": "9b0d4da0",
