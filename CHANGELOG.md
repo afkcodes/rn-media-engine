@@ -4,6 +4,56 @@ This repository's own version, tracked **independently** of the mpv it patches.
 The workshop is a tool; the engine versions it pins live in
 `manifest/engine.json`.
 
+## 0.5.0 — 2026-08-12
+
+True parity. 0.4.0 closed six divergences but closed two of them by taking
+capability away; this closes the rest and reverses that. **Tracked bugs: 13 → 1**,
+and the one that remains is already fixed in source, awaiting a release.
+
+### Aligned UP, reversing 0.4.0
+
+* **iconv is now ON for both platforms.** 0.4.0 disabled it on darwin to match
+  Android, which made the two agree by removing a working feature — the exact
+  platform-capped compromise CLAUDE.md rejects. Android now **vendors GNU
+  libiconv 1.19** statically (`buildscripts/scripts/libiconv.sh`): inside
+  `libmpv.so`, no new `DT_NEEDED`, no new file to ship, LGPL-2.1-or-later like
+  the artifact. bionic has no `iconv(3)` until API 28 and the fork builds at API
+  21 to keep Android 5–8 working, so vendoring is what lets the platform ceiling
+  stop being ours. Both now convert non-UTF-8 metadata, **ICY stream titles**,
+  CUE sheets and playlists.
+
+### Closed
+
+* **mpv option coverage** — Android passed 27 options and left ~95 at mpv's
+  `auto` defaults, protected only by the NDK not happening to satisfy a probe.
+  It now passes the same exhaustive list darwin does: **103 options each, 101
+  identical**, the only two differing being `audiotrack` vs `audiounit`. This is
+  the `avfoundation` hazard closed on both sides.
+* **libxml2** — removed from Android entirely (flag, dependency, download).
+  FFmpeg uses it only for the DASH demuxer, which neither fork enables, so
+  Android linked an XML parser nothing could reach. Both audio artifacts now
+  agree: no libxml2, no DASH.
+* **Image encoders** — removed from Android. Nothing in rn-media encodes an
+  image; the *decoders* are the cover-art feature and darwin gained those.
+* **Source integrity** — every Android source is now verified after fetching.
+  Clones assert the expected **commit** (content-addressed, so a moved tag
+  cannot change it); libiconv is checked with `sha256sum -c`. Commit assertion
+  rather than tarballs on purpose: libplacebo needs five submodules and release
+  tarballs ship those directories empty. `media-kit-android-helper` was also
+  pinned off the moving `main` branch — two builds a week apart could previously
+  package different helper code with no version change anywhere.
+
+### Remaining
+
+* `ios-simulator-has-no-audio-output` — fixed in source (`ff0fb70`); stays `bug`
+  because the manifest tracks what **ships** and no release carries it yet.
+
+### Fixed (tooling)
+
+* The android and darwin mpv option extractors used different regexes (`+` vs
+  `*`), so an option with an empty value (`-Dswift-flags=`) was invisible on one
+  side and reported as a divergence that did not exist.
+
 ## 0.4.0 — 2026-08-12
 
 The parity release's engine side (rn-media task #32). Six divergences the
