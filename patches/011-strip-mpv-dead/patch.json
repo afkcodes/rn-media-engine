@@ -1,0 +1,23 @@
+{
+  "id": "011-strip-mpv-dead",
+  "summary": "Strip the dead subsystems (GPU/shader render stack, terminal VOs, encode mode, screenshot, image writer, bitmap subtitles, default key bindings) from the audio-only build.",
+  "kind": "diff",
+  "diff": "011-strip-mpv-dead.diff",
+  "marker": "video/out/stub_gpu.c",
+  "deps": [
+    "mpv"
+  ],
+  "platforms": [
+    "android",
+    "darwin"
+  ],
+  "variants": [
+    "audio"
+  ],
+  "verification": {
+    "mode": "series"
+  },
+  "markers": [],
+  "markersNote": "Like 002-remove-libass, this patch's effect is DELETION, and absence has no string to grep for. It is asserted instead by size and by the artifact probes: the shipped .so must keep 55 exports (54 on darwin), all five rn-media markers, the 17 audio filters and 16 KB LOAD alignment while getting ~1.27 MiB smaller. AUDIO VARIANT ONLY, and that is load-bearing rather than cautious: the darwin fork also ships a VIDEO variant, and this patch removes the entire renderer that variant exists to use.",
+  "variantsNote": "audio only. Applying this to darwin's video variant would remove vo_gpu/vo_gpu_next, render_backend_gpu and the whole video/out/gpu tree from a build whose reason to exist is exactly those files."
+}

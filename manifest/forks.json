@@ -4,7 +4,7 @@
     "Where each fork keeps its patches, and what each canonical patch is called there.",
     "",
     "`workshop sync` GENERATES these files (D2, sync model (d)). The forks stay self-contained and",
-    "offline-buildable \u2014 no build-time network, no submodule \u2014 and drift becomes a red build in THIS repo",
+    "offline-buildable — no build-time network, no submodule — and drift becomes a red build in THIS repo",
     "rather than an invisible difference between two repositories nobody diffs.",
     "",
     "The filename map is explicit rather than derived. The Android fork numbers its patches 002/003/004/006",
@@ -25,13 +25,14 @@
       "patchDir": "buildscripts/patches/mpv",
       "defaultLocalPath": "../libmpv-android-audio-build",
       "appliedBy": {
-        "default": "buildscripts/patch.sh \u2014 globs `patches/mpv/*` in filename order and applies each with `git apply` (no fuzz by construction). The tree is `git reset --hard` + `git clean -fdq` first, so re-runs are safe."
+        "default": "buildscripts/patch.sh — globs `patches/mpv/*` in filename order and applies each with `git apply` (no fuzz by construction). The tree is `git reset --hard` + `git clean -fdq` first, so re-runs are safe."
       },
       "files": {
         "001-lavc-set-java-vm": "002.lavc_set_java_vm.patch",
         "002-remove-libass": "003.mpv_remove_libass.patch",
         "003-pcm-tap": "004.rn_media_pcm_tap.patch",
-        "004-prefetch-hook": "006.rn_media_prefetch_hook.patch"
+        "004-prefetch-hook": "006.rn_media_prefetch_hook.patch",
+        "011-strip-mpv-dead": "007.rn_media_strip_dead.patch"
       }
     },
     "darwin": {
@@ -43,12 +44,12 @@
       "appliedBy": {
         "default": "the dependency's nix derivation, `patch -p1` in source order inside `patchedSource`",
         "byDep": {
-          "mpv": "nix/packages/mk-pkg-mpv/default.nix \u2014 `patch -p1` in source order inside `patchedSource`. Only the prefetch-hook line passes --fuzz=0 today; the rest still run at GNU patch's default fuzz 2 (tracked in rn-media task #32).",
-          "ffmpeg": "nix/packages/mk-pkg-ffmpeg/default.nix \u2014 `patch -p1`, gated on the VIDEO variant only.",
-          "libxml2": "nix/packages/mk-pkg-libxml2/default.nix \u2014 `patch -p1` on the dependency's own ltmain.sh.",
-          "libass": "nix/packages/mk-pkg-libass/default.nix \u2014 `patch -p1` on the dependency's own ltmain.sh.",
-          "libogg": "nix/packages/mk-pkg-libogg/default.nix \u2014 `patch -p1` on the dependency's own ltmain.sh.",
-          "libvorbis": "nix/packages/mk-pkg-libvorbis/default.nix \u2014 `patch -p1` on the dependency's own ltmain.sh."
+          "mpv": "nix/packages/mk-pkg-mpv/default.nix — `patch -p1` in source order inside `patchedSource`. Only the prefetch-hook line passes --fuzz=0 today; the rest still run at GNU patch's default fuzz 2 (tracked in rn-media task #32).",
+          "ffmpeg": "nix/packages/mk-pkg-ffmpeg/default.nix — `patch -p1`, gated on the VIDEO variant only.",
+          "libxml2": "nix/packages/mk-pkg-libxml2/default.nix — `patch -p1` on the dependency's own ltmain.sh.",
+          "libass": "nix/packages/mk-pkg-libass/default.nix — `patch -p1` on the dependency's own ltmain.sh.",
+          "libogg": "nix/packages/mk-pkg-libogg/default.nix — `patch -p1` on the dependency's own ltmain.sh.",
+          "libvorbis": "nix/packages/mk-pkg-libvorbis/default.nix — `patch -p1` on the dependency's own ltmain.sh."
         }
       },
       "files": {
@@ -60,7 +61,8 @@
         "007-mpv-audiounit-shared-session": "mpv-audiounit-shared-session.patch",
         "008-ltmain-target-passthrough": "ltmain-target-passthrough.patch",
         "009-ffmpeg-fix-vp9-hwaccel": "ffmpeg-fix-vp9-hwaccel.patch",
-        "010-ffmpeg-fix-ios-hdr-texture": "ffmpeg-fix-ios-hdr-texture.patch"
+        "010-ffmpeg-fix-ios-hdr-texture": "ffmpeg-fix-ios-hdr-texture.patch",
+        "011-strip-mpv-dead": "mpv-strip-dead.patch"
       }
     }
   }

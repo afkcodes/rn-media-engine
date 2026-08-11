@@ -38,7 +38,8 @@
         "001-lavc-set-java-vm",
         "002-remove-libass",
         "003-pcm-tap",
-        "004-prefetch-hook"
+        "004-prefetch-hook",
+        "011-strip-mpv-dead"
       ],
       "darwin": [
         "005-mpv-export-list",
@@ -46,7 +47,8 @@
         "007-mpv-audiounit-shared-session",
         "002-remove-libass",
         "003-pcm-tap",
-        "004-prefetch-hook"
+        "004-prefetch-hook",
+        "011-strip-mpv-dead"
       ]
     },
     "ffmpeg": {
