@@ -50,7 +50,7 @@ export function summarise(report) {
       rows.push([`${r.dep} ${r.ref}`, 'could not fetch', '—', r.error]);
       continue;
     }
-    const failed = (r.series ?? []).flatMap((s) => s.results.filter((x) => x.result === 'failed'));
+    const failed = failuresFor(r);
     rejections += failed.length;
     hazards += r.options?.hazards ?? 0;
     rows.push([
@@ -63,17 +63,52 @@ export function summarise(report) {
   return { rows, rejections, hazards };
 }
 
+/**
+ * Distinct failures for one candidate, collapsed across the series they appear
+ * in.
+ *
+ * A patch belongs to several series — 003-pcm-tap runs in android/audio,
+ * darwin/audio and darwin/video — and when its anchor moves it fails in all of
+ * them, for the same reason, with the same text. Reporting that once per series
+ * padded the issue with three identical blocks and inflated "5 rejections" out
+ * of two broken patches.
+ *
+ * Collapsed on (patch, reason) rather than on patch alone: a patch CAN fail
+ * differently in different series, because an earlier patch in one series may
+ * have changed the tree underneath it. Identical text merges; a genuinely
+ * different failure stays visible as its own entry.
+ *
+ * The per-series breakdown is not lost — every series that hit the failure is
+ * named in `series`, and the full console report keeps the raw view.
+ */
+function failuresFor(candidate) {
+  /** @type {Map<string, any>} */
+  const byFailure = new Map();
+  for (const s of candidate.series ?? []) {
+    for (const f of s.results.filter((x) => x.result === 'failed')) {
+      // JSON rather than a delimiter string: a `reason` is arbitrary text
+      // (it carries raw git stderr), so any separator character could occur
+      // inside it and silently merge two genuinely different failures.
+      const key = JSON.stringify([f.id, f.reason]);
+      if (!byFailure.has(key)) byFailure.set(key, { ...f, series: [] });
+      byFailure.get(key).series.push(s.label);
+    }
+  }
+  return [...byFailure.values()];
+}
+
 export function body(report, text) {
   const { rows, rejections, hazards } = summarise(report);
   const detailBlocks = [];
   for (const r of report) {
     if (r.error) continue;
-    const failed = (r.series ?? []).flatMap((s) => s.results.filter((x) => x.result === 'failed'));
-    for (const f of failed) {
+    for (const f of failuresFor(r)) {
       const anchors = (f.anchors ?? []).filter((a) => a.state !== 'found' && a.state !== 'applied');
       detailBlocks.push(
         [
           `#### \`${f.id}\` against ${r.dep} ${r.ref}`,
+          '',
+          `Affects: ${f.series.map((s) => `\`${s}\``).join(', ')}`,
           '',
           anchors.length
             ? anchors.map((a) => `- anchor \`${a.file}\` #${a.index}: **${a.state}** (matched ${a.pristineCount}x, expected ${a.expectCount})${a.note ? ` — ${a.note}` : ''}`).join('\n')
@@ -98,7 +133,7 @@ export function body(report, text) {
 
   return [
     MARKER,
-    `**${rejections} patch rejection(s) and ${hazards} option hazard(s) against upstream master.**`,
+    `**${rejections} patch(es) rejected and ${hazards} option hazard(s) against upstream master.**`,
     '',
     'This is a weekly `workshop dry-run` against `mpv-player/mpv@master` and',
     '`FFmpeg/FFmpeg@master`. It is a REPORT: master is a moving target, rejections',
@@ -135,7 +170,7 @@ async function main() {
   const { rejections, hazards } = summarise(report);
   const fetchFailed = report.some((r) => r.error);
 
-  const title = `${TITLE_PREFIX} ${rejections} patch rejection(s), ${hazards} option hazard(s) vs master`;
+  const title = `${TITLE_PREFIX} ${rejections} patch(es) rejected, ${hazards} option hazard(s) vs master`;
   const issueBody = body(report, text);
   const wantsIssue = rejections > 0 || hazards > 0 || fetchFailed;
 

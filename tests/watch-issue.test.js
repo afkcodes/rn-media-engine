@@ -11,22 +11,23 @@ const report = [
     dep: 'mpv',
     ref: 'master',
     pinned: '0.41.0',
-    series: [
-      {
-        label: 'android/audio',
-        results: [
-          { id: '001-lavc-set-java-vm', kind: 'diff', result: 'applied', reason: 'clean' },
-          { id: '003-pcm-tap', kind: 'anchored', result: 'failed', reason: '1/7 anchor(s) did not match', anchors: [{ file: 'common/global.h', index: 4, state: 'gone', pristineCount: 0, expectCount: 1, note: 'one tap per mpv core' }] },
-        ],
-      },
-    ],
+    series: ['android/audio', 'darwin/audio', 'darwin/video'].map((label) => ({
+      label,
+      results: [
+        { id: '001-lavc-set-java-vm', kind: 'diff', result: 'applied', reason: 'clean' },
+        // The same patch fails in all three series, for the same reason, with
+        // the same text — which is what happens when an anchor moves.
+        { id: '003-pcm-tap', kind: 'anchored', result: 'failed', reason: '1/7 anchor(s) did not match', anchors: [{ file: 'common/global.h', index: 4, state: 'gone', pristineCount: 0, expectCount: 1, note: 'one tap per mpv core' }] },
+      ],
+    })),
     options: { newAuto: ['amf', 'libcurl'], removed: [], typeChanged: [], hazards: 2 },
   },
   { dep: 'ffmpeg', ref: 'master', error: 'HTTP 502' },
 ];
 
-test('summarise counts rejections and hazards, and survives a failed fetch', () => {
+test('summarise counts DISTINCT rejections and hazards, and survives a failed fetch', () => {
   const s = summarise(report);
+  // One broken patch across three series is one rejection, not three.
   assert.equal(s.rejections, 1);
   assert.equal(s.hazards, 2);
   assert.equal(s.rows.length, 2);
@@ -35,7 +36,7 @@ test('summarise counts rejections and hazards, and survives a failed fetch', () 
 test('the issue body names the lost anchor and the new auto options', () => {
   const md = body(report, 'console output here');
   assert.match(md, /<!-- rn-media-engine-master-watch -->/);
-  assert.match(md, /1 patch rejection\(s\) and 2 option hazard\(s\)/);
+  assert.match(md, /1 patch\(es\) rejected and 2 option hazard\(s\)/);
   assert.match(md, /common\/global\.h.*\*\*gone\*\*/);
   assert.match(md, /one tap per mpv core/);
   assert.match(md, /libcurl/);
@@ -49,4 +50,35 @@ test('a clean report produces a body with no detail section', () => {
   const md = body(clean, '');
   assert.equal(summarise(clean).rejections, 0);
   assert.doesNotMatch(md, /## Detail/);
+});
+
+test('a patch failing in several series is reported ONCE, with the series named', () => {
+  const md = body(report, '');
+  const headings = [...md.matchAll(/^#### `003-pcm-tap`.*/gm)];
+  assert.equal(headings.length, 1, 'the same failure must not be rendered once per series');
+  // The per-series scope is preserved rather than thrown away.
+  assert.match(md, /Affects: `android\/audio`, `darwin\/audio`, `darwin\/video`/);
+  // And the anchor detail still appears exactly once.
+  assert.equal([...md.matchAll(/one tap per mpv core/g)].length, 1);
+});
+
+test('a patch that fails DIFFERENTLY in two series keeps both entries', () => {
+  // Dedup is on (patch, reason), not on patch alone: an earlier patch in one
+  // series can change the tree underneath a later one, so two genuinely
+  // different failures of the same patch must both stay visible.
+  const mixed = [
+    {
+      dep: 'mpv',
+      ref: 'master',
+      pinned: '0.41.0',
+      series: [
+        { label: 'android/audio', results: [{ id: '003-pcm-tap', result: 'failed', reason: 'anchor A moved' }] },
+        { label: 'darwin/audio', results: [{ id: '003-pcm-tap', result: 'failed', reason: 'anchor B gone' }] },
+      ],
+      options: { newAuto: [], removed: [], typeChanged: [], hazards: 0 },
+    },
+  ];
+  assert.equal(summarise(mixed).rejections, 2);
+  const md = body(mixed, '');
+  assert.equal([...md.matchAll(/^#### `003-pcm-tap`.*/gm)].length, 2);
 });

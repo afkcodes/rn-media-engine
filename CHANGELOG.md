@@ -4,6 +4,41 @@ This repository's own version, tracked **independently** of the mpv it patches.
 The workshop is a tool; the engine versions it pins live in
 `manifest/engine.json`.
 
+## 0.2.1 — 2026-08-11
+
+### Fixed
+
+* **master-watch issue body: deduplicated the `## Detail` section.** A patch
+  belongs to several series — `003-pcm-tap` runs in `android/audio`,
+  `darwin/audio` and `darwin/video` — so when its anchor moves it fails in all of
+  them, and every failure was rendered as its own identical block. Issue #1
+  carried `002-remove-libass` twice and `003-pcm-tap` three times, and the
+  headline read "5 patch rejection(s)" for two broken patches.
+  * Failures are now collapsed on `(patch, reason)`, not on patch alone: a patch
+    genuinely *can* fail differently in different series, because an earlier
+    patch in one series may have changed the tree underneath it. Identical text
+    merges; a genuinely different failure stays visible as its own entry. Both
+    directions are tested.
+  * The per-series breakdown is not lost — each entry names every series it
+    affects on an `Affects:` line, and the raw per-series view stays in the
+    collapsed full console report, which is where it belongs.
+  * Counts and the issue title now say `N patch(es) rejected`, which is the
+    number of distinct broken patches. Against mpv master today that is 2, not 5.
+
+### Notes
+
+* First **lockstep release** cut from these patches: `v1.1.9-rnmedia.6`
+  (Android) and `v0.7.2-rnmedia.5` (darwin), both carrying `004-prefetch-hook`.
+  Both tag messages and the rn-media pin comments point at this repo as the
+  canonical edit target.
+* `manifest/engine.json` records **no** fork release tags and deliberately still
+  does not. It pins upstream *sources* — what the forks are built FROM — and the
+  fork tags are what the forks *produce*; recording them here would duplicate
+  rn-media's `libmpv.gradle` / `libmpv.pin`, which are their real consumers, with
+  nothing checking the copy. Asserting that the two forks' releases agree is
+  D4 stage 1, and it belongs there with a checker attached rather than here as a
+  field that rots on the next release.
+
 ## 0.2.0 — 2026-08-11
 
 Imports the prefetch hook, filling the slot 0.1.0 reserved. The equivalence

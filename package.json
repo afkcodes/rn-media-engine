@@ -1,6 +1,6 @@
 {
   "name": "rn-media-engine",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "The engine workshop for rn-media: canonical patches, pins and flag sets for our libmpv/FFmpeg binary forks.",
   "license": "MIT",
