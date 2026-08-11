@@ -73,6 +73,13 @@ binaries they ship.
   `[ $os == ios ] || [ $os == iossimulator ]` form that repo already uses
   correctly in `mk-out-frameworks/default.nix:83`. It needs a rebuild and a new
   darwin release, so it is not folded into a sync commit.
+  **Fix landed** on `libmpv-darwin-build@rn-media-hls` as `ff0fb70` (one line of
+  behaviour, no tag, no release); it ships with the parity release. Until that
+  release exists, `verify-artifacts` against `v0.7.2-rnmedia.5` stays red **by
+  design** — the check reports what shipped, not what is fixed in source. On the
+  next release the simulator slice's `audio-output` and `patch-markers` cells
+  flip to PASS and its size jumps, which is the AO and `ao_audiounit.m` entering
+  the binary rather than a regression.
 * Everything else is green: 48 pass, 2 fail, 46 n/a (each with a reason), 24
   informational across 120 cells. Android is clean on all four ABIs — 55 exports
   all `mpv_*`, 16 KB aligned, no libass/freetype/fribidi/harfbuzz in DT_NEEDED,
