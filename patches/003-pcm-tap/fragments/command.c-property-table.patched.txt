@@ -1,0 +1,3 @@
+    {"audio-out-params", mp_property_audio_out_params},
+    {"pcm-tap", mp_property_pcm_tap},
+    {"pcm-tap-frame", mp_property_pcm_tap_frame},

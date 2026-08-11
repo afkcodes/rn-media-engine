@@ -1,0 +1,38 @@
+// ---------------------------------------------------------------------------
+// rn-media PCM tap.  Retains the newest samples handed to the audio device so
+// the client API can read them back (properties `pcm-tap` / `pcm-tap-frame`,
+// player/command.c).  Implementation and design notes: audio/out/ao.c.
+// ---------------------------------------------------------------------------
+
+// Bounds on the retained window, in samples per channel.  The upper bound is
+// what keeps the ring an allocation nobody has to think about: 65536 frames of
+// 16-channel float32 is 4 MiB, and a realistic visualiser asks for 2048.
+#define MP_PCM_TAP_MIN_FRAMES 64
+#define MP_PCM_TAP_MAX_FRAMES 65536
+
+// One window of the audio most recently handed to the device, normalised to
+// interleaved float32 regardless of what the device actually consumes.
+struct mp_pcm_tap_frame {
+    int rate;           // ao->samplerate
+    int channels;       // interleaving factor of `data`
+    int frames;         // samples per channel in `data`
+    int floats;         // frames * channels, i.e. the length of `data`
+    int64_t pts_us;     // mp_time_ns()/1000 when the newest chunk was tapped
+    int64_t seq;        // monotonic chunk counter; unchanged == no new audio
+    float *data;        // talloc'd on the ta_ctx passed to mp_pcm_tap_read()
+};
+
+// Arm the tap, retaining the newest `frames` samples per channel, or disarm it
+// with frames <= 0 (which also frees the ring).  `frames` is clamped into
+// [MP_PCM_TAP_MIN_FRAMES, MP_PCM_TAP_MAX_FRAMES].  Core thread only.
+void mp_pcm_tap_configure(struct mpv_global *global, int frames);
+
+// The armed window in samples per channel, or 0 when the tap is disarmed.
+int mp_pcm_tap_window(struct mpv_global *global);
+
+// Copy out the newest window.  Returns false when the tap is disarmed or no
+// audio has reached the device yet.
+bool mp_pcm_tap_read(struct mpv_global *global, void *ta_ctx,
+                     struct mp_pcm_tap_frame *out);
+
+#endif /* MPLAYER_AUDIO_OUT_H */

@@ -1,0 +1,20 @@
+{
+  "id": "001-lavc-set-java-vm",
+  "summary": "Re-export av_jni_set_java_vm as mpv_lavc_set_java_vm so the consumer can hand mpv the JavaVM.",
+  "kind": "diff",
+  "diff": "001-lavc-set-java-vm.diff",
+  "marker": "mpv_lavc_set_java_vm",
+  "deps": [
+    "mpv"
+  ],
+  "platforms": [
+    "android"
+  ],
+  "variants": [
+    "audio",
+    "video"
+  ],
+  "verification": {
+    "mode": "series"
+  }
+}

@@ -1,0 +1,81 @@
+# Export list for Mpv.framework (Apple ld64 `-exported_symbols_list`).
+#
+# The Mach-O counterpart of the Android fork's `include/mpv.ver` version script.
+# mpv's waf build derived a version script from libmpv/mpv.def, which is why the
+# v0.7.2 binaries exported exactly the 53 names in that file. mpv 0.37 deleted
+# mpv.def and 0.41's meson relies solely on `gnu_symbol_visibility: 'hidden'`
+# plus MPV_EXPORT in the public headers. That governs mpv's OWN objects and does
+# nothing whatsoever for the archives linked into it.
+#
+# On this fork that used to be harmless -- FFmpeg and mbedTLS ship as separate
+# dylibs here, so nothing static entered the link. mpv 0.41 changed that:
+# libplacebo is mandatory (see nix/packages/mk-pkg-libplacebo) and is linked
+# statically, and every one of its ~570 public symbols is decorated
+# `PL_API __attribute__((visibility("default")))` on non-Windows targets
+# regardless of PL_STATIC (src/include/libplacebo/config.h.in:71). Without this
+# file they all land in Mpv.framework's export table.
+#
+# Not cosmetic: a React Native app routinely loads other media libraries, and a
+# leaked symbol set makes the dynamic linker's choice of whose implementation a
+# call binds to essentially arbitrary -- the exact class of collision this
+# project chose libmpv to avoid.
+#
+# The list is exact rather than an `_mpv_*` wildcard so that a new export is a
+# review event and the count is assertable against the shipped dylib: 54 names,
+# every one of them declared MPV_EXPORT in include/mpv/{client,render,render_gl,
+# stream_cb}.h of mpv 0.41.0. v0.7.2 (mpv 0.36) shipped 53; the single addition
+# is `mpv_get_time_ns`.
+_mpv_abort_async_command
+_mpv_client_api_version
+_mpv_client_id
+_mpv_client_name
+_mpv_command
+_mpv_command_async
+_mpv_command_node
+_mpv_command_node_async
+_mpv_command_ret
+_mpv_command_string
+_mpv_create
+_mpv_create_client
+_mpv_create_weak_client
+_mpv_del_property
+_mpv_destroy
+_mpv_error_string
+_mpv_event_name
+_mpv_event_to_node
+_mpv_free
+_mpv_free_node_contents
+_mpv_get_property
+_mpv_get_property_async
+_mpv_get_property_osd_string
+_mpv_get_property_string
+_mpv_get_time_ns
+_mpv_get_time_us
+_mpv_get_wakeup_pipe
+_mpv_hook_add
+_mpv_hook_continue
+_mpv_initialize
+_mpv_load_config_file
+_mpv_observe_property
+_mpv_render_context_create
+_mpv_render_context_free
+_mpv_render_context_get_info
+_mpv_render_context_render
+_mpv_render_context_report_swap
+_mpv_render_context_set_parameter
+_mpv_render_context_set_update_callback
+_mpv_render_context_update
+_mpv_request_event
+_mpv_request_log_messages
+_mpv_set_option
+_mpv_set_option_string
+_mpv_set_property
+_mpv_set_property_async
+_mpv_set_property_string
+_mpv_set_wakeup_callback
+_mpv_stream_cb_add_ro
+_mpv_terminate_destroy
+_mpv_unobserve_property
+_mpv_wait_async_requests
+_mpv_wait_event
+_mpv_wakeup

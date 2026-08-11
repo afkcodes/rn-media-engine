@@ -1,0 +1,233 @@
+
+// ===========================================================================
+// rn-media PCM tap
+//
+// Keeps the newest N samples of what was last handed to the audio device in a
+// ring, normalised to interleaved float32, so a client can read them through
+// the `pcm-tap-frame` property and draw a spectrum.  Three constraints shape
+// every line of it:
+//
+//  * The write path runs on the audio device's own thread (the AudioTrack
+//    feeder on Android, the AudioUnit render callback on iOS).  It must never
+//    block, so it takes the lock with mp_mutex_trylock and drops the chunk on
+//    contention.  The reader holds the lock for one memcpy, so contention is
+//    rare and one dropped chunk costs one frame of a visualiser.
+//  * There is one tap per mpv core, hung off mpv_global, because a single
+//    process runs several cores and each must tap its own audio.  A file-static
+//    would silently merge two players' output into one ring.
+//  * Nothing is allocated and nothing is converted until a client arms the tap.
+//    Disarmed, the whole path is one relaxed atomic load per device chunk.
+//
+// The tap sits at the very end of ao_post_process_data(), i.e. after the filter
+// chain AND after mpv's software gain, so what it reports is what is audible.
+// ===========================================================================
+
+struct mp_pcm_tap {
+    mp_mutex lock;
+    // Read once per device chunk on the audio thread; the only thing a
+    // disarmed tap costs.
+    atomic_bool armed;
+
+    int window;         // retained samples per channel
+    float *ring;        // window * channels floats, allocated on first chunk
+    int ring_floats;
+    int write_pos;      // next float to write; wraps
+    int valid_floats;   // floats written so far, saturating at ring_floats
+
+    int rate;
+    int channels;
+    int64_t pts_us;
+    int64_t seq;
+};
+
+// Acquire half of the publication in mp_pcm_tap_configure().  Reading the
+// pointer non-atomically would be a genuine data race with the first arm.
+static struct mp_pcm_tap *tap_peek(struct mpv_global *global)
+{
+    if (!global)
+        return NULL;
+    return atomic_load_explicit(&global->pcm_tap, memory_order_acquire);
+}
+
+// One sample of any PCM format mpv can hand a device, as a float in [-1, 1].
+// `fmt` is the packed form (af_fmt_from_planar), so this covers the planar
+// variants too — only the indexing differs, and that is the caller's job.
+static float tap_sample(int fmt, const void *plane, size_t idx)
+{
+    switch (fmt) {
+    case AF_FORMAT_U8:
+        return (((const uint8_t *)plane)[idx] - 128) * (1.0f / 128.0f);
+    case AF_FORMAT_S16:
+        return ((const int16_t *)plane)[idx] * (1.0f / 32768.0f);
+    case AF_FORMAT_S32:
+        return ((const int32_t *)plane)[idx] * (1.0f / 2147483648.0f);
+    case AF_FORMAT_S64:
+        return ((const int64_t *)plane)[idx] * (1.0f / 9223372036854775808.0f);
+    case AF_FORMAT_FLOAT:
+        return ((const float *)plane)[idx];
+    case AF_FORMAT_DOUBLE:
+        return (float)((const double *)plane)[idx];
+    default:
+        return 0.0f;
+    }
+}
+
+// Audio-device thread.  Never blocks, never allocates once warm.
+static void mp_pcm_tap_write(struct ao *ao, void **data, int num_samples)
+{
+    struct mp_pcm_tap *tap = tap_peek(ao->global);
+    if (!tap || !atomic_load_explicit(&tap->armed, memory_order_relaxed))
+        return;
+    // S/PDIF passthrough carries codec frames, not samples: nothing to draw.
+    if (num_samples <= 0 || !data || !af_fmt_is_pcm(ao->format))
+        return;
+    int channels = ao->channels.num;
+    if (channels <= 0 || channels > MP_NUM_CHANNELS)
+        return;
+
+    if (mp_mutex_trylock(&tap->lock) != 0)
+        return;
+
+    if (!tap->ring || tap->channels != channels ||
+        tap->ring_floats != tap->window * channels)
+    {
+        TA_FREEP(&tap->ring);
+        tap->ring_floats = tap->window * channels;
+        tap->ring = talloc_array(tap, float, tap->ring_floats);
+        tap->channels = channels;
+        tap->write_pos = 0;
+        tap->valid_floats = 0;
+    }
+    if (!tap->ring) {
+        mp_mutex_unlock(&tap->lock);
+        return;
+    }
+
+    bool planar = af_fmt_is_planar(ao->format);
+    int fmt = af_fmt_from_planar(ao->format);
+    // Only the newest `window` frames can survive the ring, so skip the rest
+    // instead of converting samples that are about to be overwritten.
+    int first = num_samples > tap->window ? num_samples - tap->window : 0;
+
+    for (int s = first; s < num_samples; s++) {
+        for (int c = 0; c < channels; c++) {
+            const void *plane = planar ? data[c] : data[0];
+            size_t idx = planar ? (size_t)s : (size_t)s * channels + c;
+            tap->ring[tap->write_pos] = tap_sample(fmt, plane, idx);
+            if (++tap->write_pos == tap->ring_floats)
+                tap->write_pos = 0;
+        }
+    }
+
+    int written = (num_samples - first) * channels;
+    tap->valid_floats = MPMIN(tap->valid_floats + written, tap->ring_floats);
+    tap->rate = ao->samplerate;
+    // mpv 0.37 dropped mp_time_us(); the property is documented in
+    // microseconds, so keep the unit and divide the nanosecond clock.
+    tap->pts_us = mp_time_ns() / 1000;
+    tap->seq++;
+
+    mp_mutex_unlock(&tap->lock);
+}
+
+void mp_pcm_tap_configure(struct mpv_global *global, int frames)
+{
+    if (!global)
+        return;
+    struct mp_pcm_tap *tap = tap_peek(global);
+    if (!tap) {
+        if (frames <= 0)
+            return;     // disarming a tap that was never armed
+        // talloc_zero leaves `armed` false: a zeroed atomic_bool is false, and
+        // that is how mpv itself initialises its atomic members (atomic_init
+        // and ATOMIC_VAR_INIT appear nowhere in the 0.41 tree).
+        tap = talloc_zero(global, struct mp_pcm_tap);
+        mp_mutex_init(&tap->lock);
+        tap->window = MPCLAMP(frames, MP_PCM_TAP_MIN_FRAMES,
+                              MP_PCM_TAP_MAX_FRAMES);
+        // Release: the initialisation above must be visible to the audio
+        // thread before it can reach the object at all.
+        atomic_store_explicit(&global->pcm_tap, tap, memory_order_release);
+    }
+
+    mp_mutex_lock(&tap->lock);
+    // Reset unconditionally: a re-arm must never hand the new subscriber a
+    // window recorded for the previous one.
+    TA_FREEP(&tap->ring);
+    tap->ring_floats = 0;
+    tap->write_pos = 0;
+    tap->valid_floats = 0;
+    tap->channels = 0;
+    if (frames > 0)
+        tap->window = MPCLAMP(frames, MP_PCM_TAP_MIN_FRAMES,
+                              MP_PCM_TAP_MAX_FRAMES);
+    mp_mutex_unlock(&tap->lock);
+
+    // Plain atomic_store, i.e. seq_cst, matching the seq_cst loads in
+    // mp_pcm_tap_window()/mp_pcm_tap_read(): a client that sets `pcm-tap` and
+    // reads it straight back must never observe the previous arming state.
+    atomic_store(&tap->armed, frames > 0);
+}
+
+int mp_pcm_tap_window(struct mpv_global *global)
+{
+    struct mp_pcm_tap *tap = tap_peek(global);
+    if (!tap || !atomic_load_explicit(&tap->armed, memory_order_seq_cst))
+        return 0;
+    return tap->window;
+}
+
+bool mp_pcm_tap_read(struct mpv_global *global, void *ta_ctx,
+                     struct mp_pcm_tap_frame *out)
+{
+    struct mp_pcm_tap *tap = tap_peek(global);
+    if (!tap || !out ||
+        !atomic_load_explicit(&tap->armed, memory_order_seq_cst))
+        return false;
+
+    mp_mutex_lock(&tap->lock);
+    if (!tap->ring || tap->valid_floats <= 0 || tap->channels <= 0 ||
+        tap->rate <= 0)
+    {
+        mp_mutex_unlock(&tap->lock);
+        return false;
+    }
+
+    int floats = tap->valid_floats;
+    float *copy = talloc_array(ta_ctx, float, floats);
+    if (!copy) {
+        mp_mutex_unlock(&tap->lock);
+        return false;
+    }
+    // The window ends at write_pos (exclusive); walk back `floats` with wrap
+    // so the copy comes out in chronological order.
+    int start = (tap->write_pos - floats + tap->ring_floats) % tap->ring_floats;
+    int head = MPMIN(floats, tap->ring_floats - start);
+    memcpy(copy, tap->ring + start, head * sizeof(float));
+    if (floats > head)
+        memcpy(copy + head, tap->ring, (floats - head) * sizeof(float));
+
+    *out = (struct mp_pcm_tap_frame){
+        .rate = tap->rate,
+        .channels = tap->channels,
+        .frames = floats / tap->channels,
+        .floats = floats,
+        .pts_us = tap->pts_us,
+        .seq = tap->seq,
+        .data = copy,
+    };
+    mp_mutex_unlock(&tap->lock);
+    return true;
+}
+
+void ao_post_process_data(struct ao *ao, void **data, int num_samples)
+{
+    bool planar = af_fmt_is_planar(ao->format);
+    int planes = planar ? ao->channels.num : 1;
+    int plane_samples = num_samples * (planar ? 1: ao->channels.num);
+    for (int n = 0; n < planes; n++)
+        process_plane(ao, data[n], plane_samples);
+    // rn-media: tapped here, after the software gain above, so a visualiser
+    // shows what is actually audible rather than what the filters produced.
+    mp_pcm_tap_write(ao, data, num_samples);
+}

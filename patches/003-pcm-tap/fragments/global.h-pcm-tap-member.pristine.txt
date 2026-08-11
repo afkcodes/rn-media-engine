@@ -1,0 +1,2 @@
+    struct demux_packet_pool *packet_pool;
+};

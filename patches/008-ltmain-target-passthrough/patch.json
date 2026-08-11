@@ -1,0 +1,23 @@
+{
+  "id": "008-ltmain-target-passthrough",
+  "summary": "Teach libtool to pass -target through to the compiler, so cross-compiled autotools deps get the right triple.",
+  "kind": "diff",
+  "diff": "008-ltmain-target-passthrough.diff",
+  "marker": "-model|-arch|-isysroot|--sysroot|-target",
+  "deps": [
+    "libxml2",
+    "libass",
+    "libogg",
+    "libvorbis"
+  ],
+  "platforms": [
+    "darwin"
+  ],
+  "variants": [
+    "audio",
+    "video"
+  ],
+  "verification": {
+    "mode": "series"
+  }
+}

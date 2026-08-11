@@ -1,0 +1,26 @@
+{
+  "id": "005-mpv-export-list",
+  "summary": "Pin libmpv's Mach-O export list to the 54 public mpv_* symbols, scoped to the libmpv link only.",
+  "kind": "diff",
+  "diff": "005-mpv-export-list.diff",
+  "marker": "rn-media-mpv.exp",
+  "deps": [
+    "mpv"
+  ],
+  "platforms": [
+    "darwin"
+  ],
+  "variants": [
+    "audio",
+    "video"
+  ],
+  "assets": [
+    {
+      "from": "assets/mpv.exp",
+      "to": "rn-media-mpv.exp"
+    }
+  ],
+  "verification": {
+    "mode": "series"
+  }
+}

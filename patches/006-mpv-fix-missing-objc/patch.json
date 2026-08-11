@@ -1,0 +1,20 @@
+{
+  "id": "006-mpv-fix-missing-objc",
+  "summary": "Call add_languages('objc') where the cocoa/audiounit features are enabled, not only where a macOS SDK is detected.",
+  "kind": "diff",
+  "diff": "006-mpv-fix-missing-objc.diff",
+  "marker": "if features['cocoa']\n    add_languages('objc', native: false)",
+  "deps": [
+    "mpv"
+  ],
+  "platforms": [
+    "darwin"
+  ],
+  "variants": [
+    "audio",
+    "video"
+  ],
+  "verification": {
+    "mode": "series"
+  }
+}

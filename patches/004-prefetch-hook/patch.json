@@ -1,0 +1,17 @@
+{
+  "id": "004-prefetch-hook",
+  "summary": "RESERVED — the prefetch hook, being authored in the Android fork.",
+  "status": "reserved",
+  "deps": [
+    "mpv"
+  ],
+  "platforms": [
+    "android",
+    "darwin"
+  ],
+  "variants": [
+    "audio",
+    "video"
+  ],
+  "todo": "A prefetch-hook patch was in flight in libmpv-android-audio-build@rn-media-hls (buildscripts/patches/mpv/006.rn_media_prefetch_hook.patch) when this workshop was built, authored by another agent. It is deliberately NOT copied here: importing a patch mid-authoring would fork it. Import it once it has landed and been reviewed, as `kind: anchored` — it is a feature insertion across several player/ files, which is exactly the shape the anchored format exists for, and ales-drnz's equivalent (patch_prefetch_state.py) is the specific patcher whose `if pristine in text: replace()` loop silently applies a SUBSET of its call sites. Give every call site its own transform with an explicit expectCount so that defect is unreachable here."
+}

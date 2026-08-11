@@ -1,0 +1,20 @@
+{
+  "id": "002-remove-libass",
+  "summary": "Strip libass (and transitively freetype/fribidi/harfbuzz) out of the audio-only build.",
+  "kind": "diff",
+  "diff": "002-remove-libass.diff",
+  "marker": "sub/stub_libass.c",
+  "deps": [
+    "mpv"
+  ],
+  "platforms": [
+    "android",
+    "darwin"
+  ],
+  "variants": [
+    "audio"
+  ],
+  "verification": {
+    "mode": "series"
+  }
+}

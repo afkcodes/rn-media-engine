@@ -1,0 +1,50 @@
+#!/usr/bin/env node
+// @ts-check
+/**
+ * rn-media engine workshop.
+ *
+ * Plain Node 22+, zero runtime dependencies — the same discipline as rn-media's
+ * scripts/check-upstream.mjs, and for the same reason: `./workshop verify` must
+ * reproduce a CI run on a laptop with no `npm install` and no token. A gate you
+ * can only run by pushing is a gate that rots.
+ */
+
+import { COMMANDS, parseArgs, topLevelHelp, VERSION } from './tools/cli.js';
+
+async function main() {
+  const argv = process.argv.slice(2);
+  const command = argv.find((a) => !a.startsWith('-'));
+  const { flags, positional } = parseArgs(argv.filter((a) => a !== command));
+
+  if (flags.version) {
+    console.log(VERSION);
+    return 0;
+  }
+  if (!command) {
+    console.log(topLevelHelp());
+    return flags.help ? 0 : 1;
+  }
+  const entry = COMMANDS[command];
+  if (!entry) {
+    console.error(`workshop: unknown command "${command}"\n`);
+    console.error(topLevelHelp());
+    return 1;
+  }
+
+  const mod = await entry.load();
+  if (flags.help) {
+    console.log(mod.help());
+    return 0;
+  }
+  return (await mod.run({ flags, positional })) ?? 0;
+}
+
+main()
+  .then((code) => {
+    process.exitCode = code;
+  })
+  .catch((e) => {
+    console.error(`workshop: ${e instanceof Error ? e.message : String(e)}`);
+    if (process.env.WORKSHOP_DEBUG && e instanceof Error) console.error(e.stack);
+    process.exitCode = 1;
+  });

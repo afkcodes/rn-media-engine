@@ -1,0 +1,545 @@
+{
+  "schema": 1,
+  "note": [
+    "Per-dependency x per-platform pins for the rn-media engine. Measured from the two forks on 2026-08-11:",
+    "android = libmpv-android-audio-build@rn-media-hls buildscripts/include/depinfo.sh + include/download-deps.sh;",
+    "darwin  = libmpv-darwin-build@rn-media-hls packages.lock.nix.",
+    "",
+    "`fetch` records HOW the fork actually acquires the source. 'tarball' means url+sha256 is what the build",
+    "consumes. 'git-tag' means the fork runs `git clone --depth 1 --branch <ref>` and verifies NOTHING: the",
+    "url+sha256 recorded there is the equivalent release tarball, measured by the workshop, and it is a",
+    "reference value rather than a build input until the Android fork is moved onto checksummed tarballs.",
+    "That gap is declared as the repo-level 'source-integrity' divergence below; it is a bug, not a choice.",
+    "",
+    "Every difference between the two platforms MUST be declared in the dependency's `divergence` field.",
+    "`workshop verify` fails on an undeclared divergence AND on a declared one that is no longer real."
+  ],
+  "platforms": ["android", "darwin"],
+  "repoDivergences": [
+    {
+      "id": "source-integrity",
+      "status": "bug",
+      "ref": "rn-media task #32",
+      "reason": "The Android fork fetches every source as a shallow git clone by tag and verifies no checksum; the darwin fork carries a sha256 on all 22 sources. A tag is mutable and a clone is unverifiable, so the Android engine's supply chain is strictly weaker than the iOS one. The sha256 values recorded under `fetch: git-tag` below were measured by the workshop against the matching release tarballs and are the migration target."
+    },
+    {
+      "id": "libxml2-scope",
+      "status": "bug",
+      "ref": "rn-media task #32",
+      "reason": "Android passes --enable-libxml2 for every build; darwin passes it only in `video_common_options`, so the shipped audio dylib has no libxml2 and the audio artifacts differ in linked dependencies. Tracked as a flag divergence in manifest/flags.json; recorded here because it is why libxml2's version skew matters less on darwin than the raw numbers suggest."
+    }
+  ],
+  "dependencies": {
+    "mpv": {
+      "role": "audio-core",
+      "patched": true,
+      "upstream": { "kind": "github-release", "repo": "mpv-player/mpv" },
+      "pins": {
+        "android": {
+          "version": "0.41.0",
+          "fetch": "git-tag",
+          "ref": "v0.41.0",
+          "url": "https://github.com/mpv-player/mpv/archive/refs/tags/v0.41.0.tar.gz",
+          "sha256": "ee21092a5ee427353392360929dc64645c54479aefdb5babc5cfbb5fad626209",
+          "pinNote": "The engine itself. Both forks ship the same release, which is the whole point of the workshop."
+        },
+        "darwin": {
+          "version": "0.41.0",
+          "fetch": "tarball",
+          "url": "https://github.com/mpv-player/mpv/archive/refs/tags/v0.41.0.tar.gz",
+          "sha256": "ee21092a5ee427353392360929dc64645c54479aefdb5babc5cfbb5fad626209",
+          "pinNote": "The engine itself. Both forks ship the same release, which is the whole point of the workshop."
+        }
+      },
+      "divergence": null
+    },
+    "ffmpeg": {
+      "role": "audio-core",
+      "patched": true,
+      "upstream": { "kind": "github-tags", "repo": "FFmpeg/FFmpeg", "stablePattern": "^n\\d+\\.\\d+(\\.\\d+)?$" },
+      "pins": {
+        "android": {
+          "version": "8.1.2",
+          "fetch": "git-tag",
+          "ref": "n8.1.2",
+          "url": "https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n8.1.2.tar.gz",
+          "sha256": "9fd092511605bbebafe095ea6d38d9e40f34d12f7386e1258372df8be0576eb7",
+          "pinNote": "FFmpeg 8.1.2 (\"Hoare\" line). The floor is mpv 0.41's own dependency('libavcodec', version: '>= 60.31.102'), i.e. FFmpeg >= 6.1. Deliberately NOT n9.0: that branch was cut six months after mpv 0.41.0 shipped and has no point release yet."
+        },
+        "darwin": {
+          "version": "8.1.2",
+          "fetch": "tarball",
+          "url": "https://ffmpeg.org/releases/ffmpeg-8.1.2.tar.xz",
+          "sha256": "464beb5e7bf0c311e68b45ae2f04e9cc2af88851abb4082231742a74d97b524c",
+          "pinNote": "Same release as Android, fetched from ffmpeg.org rather than the GitHub mirror. Different bytes, identical content; the version is what has to agree."
+        }
+      },
+      "divergence": null
+    },
+    "libplacebo": {
+      "role": "audio-core",
+      "patched": false,
+      "upstream": { "kind": "github-tags", "repo": "haasn/libplacebo", "stablePattern": "^v\\d+\\.\\d+\\.\\d+$" },
+      "pins": {
+        "android": {
+          "version": "6.338.2",
+          "fetch": "git-tag",
+          "ref": "v6.338.2",
+          "url": "https://github.com/haasn/libplacebo/archive/refs/tags/v6.338.2.tar.gz",
+          "sha256": "2f1e624e09d72a8c9db70f910f7560e764a1c126dae42acc5b3bcef836a7aec6",
+          "pinNote": "Mandatory since mpv 0.37 and reached from non-video translation units, so it cannot be stripped the way libass can. 6.338.2 is exactly mpv 0.41's declared minimum; 7.x drops symbols mpv 0.41's csputils.h still references under mobile cross-files. Android clones --recursive, so it gets libplacebo's build-time submodules from git."
+        },
+        "darwin": {
+          "version": "6.338.2",
+          "fetch": "tarball",
+          "url": "https://github.com/haasn/libplacebo/archive/refs/tags/v6.338.2.tar.gz",
+          "sha256": "2f1e624e09d72a8c9db70f910f7560e764a1c126dae42acc5b3bcef836a7aec6",
+          "pinNote": "Same pin as Android. A GitHub release tarball carries the submodule directories EMPTY, so four of the five are vendored separately below."
+        }
+      },
+      "divergence": null
+    },
+    "mbedtls": {
+      "role": "audio-core",
+      "patched": false,
+      "upstream": { "kind": "github-tags", "repo": "Mbed-TLS/mbedtls", "stablePattern": "^v\\d+\\.\\d+\\.\\d+$" },
+      "pins": {
+        "android": {
+          "version": "3.6.1",
+          "fetch": "git-tag",
+          "ref": "v3.6.1",
+          "url": "https://github.com/Mbed-TLS/mbedtls/archive/refs/tags/v3.6.1.tar.gz",
+          "sha256": "e3650e1a2adb506a721ba67ccf0041b2b78bca6979daaebced5b3454275be8b6",
+          "pinNote": "The TLS stack that terminates every HTTPS/HLS connection."
+        },
+        "darwin": {
+          "version": "3.4.1",
+          "fetch": "tarball",
+          "url": "https://github.com/Mbed-TLS/mbedtls/archive/refs/tags/v3.4.1.tar.gz",
+          "sha256": "a420fcf7103e54e775c383e3751729b8fb2dcd087f6165befd13f28315f754f5",
+          "pinNote": "Inherited from upstream libmpv-darwin-build and never bumped with the Android side."
+        }
+      },
+      "divergence": {
+        "kind": "version",
+        "status": "bug",
+        "ref": "rn-media task #32",
+        "reason": "iOS is two minor versions behind Android on the TLS library that terminates every HTTPS and HLS connection. This is a security-relevant lag, not a compatibility choice: nothing in the darwin build requires 3.4.1. Fix by bumping darwin to 3.6.1 and re-running the full verification playbook."
+      }
+    },
+    "libxml2": {
+      "role": "audio-core-android-only",
+      "patched": false,
+      "upstream": { "kind": "gitlab-tags", "host": "gitlab.gnome.org", "project": "GNOME/libxml2", "stablePattern": "^v?\\d+\\.\\d+\\.\\d+$" },
+      "pins": {
+        "android": {
+          "version": "2.10.3",
+          "fetch": "git-tag",
+          "ref": "v2.10.3",
+          "url": "https://download.gnome.org/sources/libxml2/2.10/libxml2-2.10.3.tar.xz",
+          "sha256": "5d2cc3d78bec3dbe212a9d7fa629ada25a7da928af432c93060ff5c17ee28a9c",
+          "pinNote": "Android passes --enable-libxml2 for every build, so this is linked into the shipped audio engine."
+        },
+        "darwin": {
+          "version": "2.11.5",
+          "fetch": "tarball",
+          "url": "https://download.gnome.org/sources/libxml2/2.11/libxml2-2.11.5.tar.xz",
+          "sha256": "3727b078c360ec69fa869de14bd6f75d7ee8d36987b071e6928d4720a28df3a6",
+          "pinNote": "Built, but only reachable in the VIDEO variant: --enable-libxml2 lives in darwin's video_common_options, so the shipped audio dylib does not link it. See repoDivergences/libxml2-scope."
+        }
+      },
+      "divergence": {
+        "kind": "version",
+        "status": "bug",
+        "ref": "rn-media task #32",
+        "reason": "Android pins 2.10.3, darwin 2.11.5 — one release line apart, in opposite directions to the mbedTLS skew, and neither was a decision. Not previously named anywhere. Converge both on one line; the newer one unless the Android DASH/XML path regresses."
+      }
+    },
+    "fastFloat": {
+      "role": "libplacebo-submodule",
+      "patched": false,
+      "upstream": { "kind": "none", "reason": "pinned to the exact commit libplacebo v6.338.2 points at; it moves only when libplacebo moves" },
+      "pins": {
+        "darwin": {
+          "version": "2b2395f9",
+          "fetch": "tarball",
+          "url": "https://github.com/fastfloat/fast_float/archive/2b2395f9ac836ffca6404424bcc252bff7aa80e4.tar.gz",
+          "sha256": "230d20e4e4ac1f6a9df92c4d746c6ec536cdb0c085bc8635d4b88cead5dc22cb",
+          "pinNote": "libplacebo src/convert.cc falls back to std::from_chars for float/double; libc++ in Xcode 16.x does not implement the floating-point overloads and convert.cc static_asserts on it. Header-only."
+        }
+      },
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "libmpv-android-audio-build buildscripts/include/download-deps.sh",
+        "reason": "darwin-only by construction: the Android fork clones libplacebo with --recursive and gets this submodule from git, while darwin uses a release tarball, which ships submodule directories EMPTY. Same content, different acquisition; not a version skew."
+      }
+    },
+    "jinja": {
+      "role": "libplacebo-submodule",
+      "patched": false,
+      "upstream": { "kind": "none", "reason": "pinned to the exact commit libplacebo v6.338.2 points at" },
+      "pins": {
+        "darwin": {
+          "version": "b08cd4bc",
+          "fetch": "tarball",
+          "url": "https://github.com/pallets/jinja/archive/b08cd4bc64bb980df86ed2876978ae5735572280.tar.gz",
+          "sha256": "9a20bab550a760ccb9b38a45d4fe76be92649206ee04633c646d0935a1872b0e",
+          "pinNote": "libplacebo's tools/glsl_preproc runs for EVERY build, not just GPU ones, and imports jinja2 off the submodule PYTHONPATH. Build-time only. Absent: ModuleNotFoundError (CI run 31459350681)."
+        }
+      },
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "libmpv-android-audio-build buildscripts/include/download-deps.sh",
+        "reason": "darwin-only by construction: Android clones libplacebo --recursive; darwin's release tarball has empty submodule dirs."
+      }
+    },
+    "markupsafe": {
+      "role": "libplacebo-submodule",
+      "patched": false,
+      "upstream": { "kind": "none", "reason": "pinned to the exact commit libplacebo v6.338.2 points at" },
+      "pins": {
+        "darwin": {
+          "version": "c0254f0c",
+          "fetch": "tarball",
+          "url": "https://github.com/pallets/markupsafe/archive/c0254f0cfe51720ecc9e72e8896022af29af5b44.tar.gz",
+          "sha256": "1826c5d89cc1aa0b3088f538726d339e0c5cd69fbe03f7b8f9a3f880474d1120",
+          "pinNote": "jinja2's only hard runtime dependency. Build-time only."
+        }
+      },
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "libmpv-android-audio-build buildscripts/include/download-deps.sh",
+        "reason": "darwin-only by construction: Android clones libplacebo --recursive; darwin's release tarball has empty submodule dirs."
+      }
+    },
+    "vulkanHeaders": {
+      "role": "libplacebo-submodule",
+      "patched": false,
+      "upstream": { "kind": "none", "reason": "pinned to the exact commit libplacebo v6.338.2 points at" },
+      "pins": {
+        "darwin": {
+          "version": "d732b2de",
+          "fetch": "tarball",
+          "url": "https://github.com/KhronosGroup/Vulkan-Headers/archive/d732b2de303ce505169011d438178191136bfb00.tar.gz",
+          "sha256": "570f9ae1e65466dbaf5fcab667abd079dd0a61c4ab86cf535efd492bf70a5b74",
+          "pinNote": "src/vulkan/stubs.c is compiled even when Vulkan is DISABLED and includes <vulkan/vulkan.h>. Headers only; Vulkan stays disabled and pl_has_vulkan=0. Absent: fatal error 'vulkan/vulkan.h' file not found (CI run 31459857826)."
+        }
+      },
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "libmpv-android-audio-build buildscripts/include/download-deps.sh",
+        "reason": "darwin-only by construction: Android clones libplacebo --recursive; darwin's release tarball has empty submodule dirs."
+      }
+    },
+    "dav1d": {
+      "role": "video-variant",
+      "patched": false,
+      "upstream": { "kind": "none", "reason": "video variant only; not in the shipped audio engine" },
+      "pins": {
+        "darwin": {
+          "version": "1.2.1",
+          "fetch": "tarball",
+          "url": "https://code.videolan.org/videolan/dav1d/-/archive/1.2.1/dav1d-1.2.1.tar.bz2",
+          "sha256": "a4003623cdc0109dec3aac8435520aa3fb12c4d69454fa227f2658cdb6dab5fa",
+          "pinNote": "AV1 decoder, --enable-libdav1d in video_common_options only."
+        }
+      },
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "rn-media PLAN.md 7.5",
+        "reason": "The Android fork builds no video variant at all. Video is additive and never in core, so a video-only dependency existing on one side is the design, not drift. It is listed here so the manifest is a superset of both forks rather than a filtered view."
+      }
+    },
+    "libass": {
+      "role": "video-variant",
+      "patched": true,
+      "upstream": { "kind": "none", "reason": "video variant only; stripped out of the audio engine by patch 002-remove-libass" },
+      "pins": {
+        "darwin": {
+          "version": "0.17.1",
+          "fetch": "tarball",
+          "url": "https://github.com/libass/libass/releases/download/0.17.1/libass-0.17.1.tar.xz",
+          "sha256": "f0da0bbfba476c16ae3e1cfd862256d30915911f7abaa1b16ce62ee653192784",
+          "pinNote": "Subtitle renderer. The audio variant strips it via 002-remove-libass; this pin exists for the video variant only."
+        }
+      },
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "rn-media PLAN.md 7.5",
+        "reason": "video variant only; the Android fork builds no video variant."
+      }
+    },
+    "freetype": {
+      "role": "video-variant",
+      "patched": false,
+      "upstream": { "kind": "none", "reason": "libass dependency, video variant only" },
+      "pins": {
+        "darwin": {
+          "version": "2.13.2",
+          "fetch": "tarball",
+          "url": "https://downloads.sourceforge.net/project/freetype/freetype2/2.13.2/freetype-2.13.2.tar.xz",
+          "sha256": "12991c4e55c506dd7f9b765933e62fd2be2e06d421505d7950a132e4f1bb484d",
+          "pinNote": "libass dependency."
+        }
+      },
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "rn-media PLAN.md 7.5",
+        "reason": "libass dependency; video variant only, and the Android fork builds no video variant."
+      }
+    },
+    "fribidi": {
+      "role": "video-variant",
+      "patched": false,
+      "upstream": { "kind": "none", "reason": "libass dependency, video variant only" },
+      "pins": {
+        "darwin": {
+          "version": "1.0.13",
+          "fetch": "tarball",
+          "url": "https://github.com/fribidi/fribidi/releases/download/v1.0.13/fribidi-1.0.13.tar.xz",
+          "sha256": "7fa16c80c81bd622f7b198d31356da139cc318a63fc7761217af4130903f54a2",
+          "pinNote": "libass dependency."
+        }
+      },
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "rn-media PLAN.md 7.5",
+        "reason": "libass dependency; video variant only, and the Android fork builds no video variant."
+      }
+    },
+    "harfbuzz": {
+      "role": "video-variant",
+      "patched": false,
+      "upstream": { "kind": "none", "reason": "libass dependency, video variant only" },
+      "pins": {
+        "darwin": {
+          "version": "8.1.1",
+          "fetch": "tarball",
+          "url": "https://github.com/harfbuzz/harfbuzz/archive/8.1.1.tar.gz",
+          "sha256": "b16e6bc0fc7e6a218583f40c7d201771f2e3072f85ef6e9217b36c1dc6b2aa25",
+          "pinNote": "libass dependency."
+        }
+      },
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "rn-media PLAN.md 7.5",
+        "reason": "libass dependency; video variant only, and the Android fork builds no video variant."
+      }
+    },
+    "libpng": {
+      "role": "video-variant",
+      "patched": false,
+      "upstream": { "kind": "none", "reason": "video variant only" },
+      "pins": {
+        "darwin": {
+          "version": "1.6.40",
+          "fetch": "tarball",
+          "url": "https://github.com/pnggroup/libpng/archive/v1.6.40.tar.gz",
+          "sha256": "62d25af25e636454b005c93cae51ddcd5383c40fa14aa3dae8f6576feb5692c2",
+          "pinNote": "Built with the meson wrapdb patch below."
+        }
+      },
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "rn-media PLAN.md 7.5",
+        "reason": "video variant only; the Android fork builds no video variant."
+      }
+    },
+    "libpngPatch": {
+      "role": "video-variant",
+      "patched": false,
+      "upstream": { "kind": "none", "reason": "meson wrapdb patch tied to the libpng pin above" },
+      "pins": {
+        "darwin": {
+          "version": "1.6.40-1",
+          "fetch": "tarball",
+          "url": "https://wrapdb.mesonbuild.com/v2/libpng_1.6.40-1/get_patch",
+          "sha256": "bad558070e0a82faa5c0ae553bcd12d49021fc4b628f232a8e58c3fbd281aae1",
+          "pinNote": "meson wrapdb build files for libpng; moves only with libpng."
+        }
+      },
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "rn-media PLAN.md 7.5",
+        "reason": "video variant only; the Android fork builds no video variant."
+      }
+    },
+    "libogg": {
+      "role": "video-variant",
+      "patched": true,
+      "upstream": { "kind": "none", "reason": "encodersgpl flavour only" },
+      "pins": {
+        "darwin": {
+          "version": "1.3.5",
+          "fetch": "tarball",
+          "url": "https://github.com/xiph/ogg/releases/download/v1.3.5/libogg-1.3.5.tar.gz",
+          "sha256": "0eb4b4b9420a0f51db142ba3f9c64b333f826532dc0f48c6410ae51f4799b664",
+          "pinNote": "libvorbis dependency; reached only by the encodersgpl flavour, which we do not ship. Carries 008-ltmain-target-passthrough."
+        }
+      },
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "rn-media PLAN.md 7.5",
+        "reason": "Not in either shipped artifact; present in the darwin fork's dependency graph for the encodersgpl flavour. The Android fork has no such flavour."
+      }
+    },
+    "libvorbis": {
+      "role": "video-variant",
+      "patched": true,
+      "upstream": { "kind": "none", "reason": "encodersgpl flavour only" },
+      "pins": {
+        "darwin": {
+          "version": "1.3.7",
+          "fetch": "tarball",
+          "url": "https://github.com/xiph/vorbis/releases/download/v1.3.7/libvorbis-1.3.7.tar.gz",
+          "sha256": "0e982409a9c3fc82ee06e08205b1355e5c6aa4c36bca58146ef399621b0ce5ab",
+          "pinNote": "--enable-libvorbis, encodersgpl flavour only. Carries 008-ltmain-target-passthrough."
+        }
+      },
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "rn-media PLAN.md 7.5",
+        "reason": "encodersgpl flavour only; not shipped, and the Android fork has no such flavour."
+      }
+    },
+    "libvpx": {
+      "role": "video-variant",
+      "patched": false,
+      "upstream": { "kind": "none", "reason": "encodersgpl flavour only" },
+      "pins": {
+        "darwin": {
+          "version": "1.13.0+1",
+          "fetch": "tarball",
+          "url": "https://gitlab.freedesktop.org/gstreamer/meson-ports/libvpx/-/archive/90d26fac0d895969a82cd873ad36e39737104c44/libvpx-v1.13.0.tar.gz",
+          "sha256": "4f872ad2709d17b848b3588231495e432c42b9263731b9121fa210a3c5a893ff",
+          "pinNote": "--enable-libvpx, encodersgpl flavour only. NOT shipped: the encodersgpl flavour also passes --enable-gpl."
+        }
+      },
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "rn-media PLAN.md 7.5",
+        "reason": "encodersgpl flavour only; not shipped, and the Android fork has no such flavour."
+      }
+    },
+    "libx264": {
+      "role": "video-variant",
+      "patched": false,
+      "upstream": { "kind": "none", "reason": "encodersgpl flavour only" },
+      "pins": {
+        "darwin": {
+          "version": "a8b68ebf",
+          "fetch": "tarball",
+          "url": "https://code.videolan.org/videolan/x264/-/archive/a8b68ebfaa68621b5ac8907610d3335971839d52/libx264-a8b68ebfaa68621b5ac8907610d3335971839d52.tar.gz",
+          "sha256": "164688b63f11a6e4f6d945057fc5c57d5eefb97973d0029fb0303744e10839ff",
+          "pinNote": "GPL. Reachable ONLY through the encodersgpl flavour, which we never build; the LGPL invariant in manifest/flags.json is what keeps it out."
+        }
+      },
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "rn-media PLAN.md 7.5",
+        "reason": "encodersgpl flavour only; not shipped, and the Android fork has no such flavour."
+      }
+    },
+    "uchardet": {
+      "role": "video-variant",
+      "patched": false,
+      "upstream": { "kind": "none", "reason": "video variant only" },
+      "pins": {
+        "darwin": {
+          "version": "0.0.8",
+          "fetch": "tarball",
+          "url": "https://www.freedesktop.org/software/uchardet/releases/uchardet-0.0.8.tar.xz",
+          "sha256": "e97a60cfc00a1c147a674b097bb1422abd9fa78a2d9ce3f3fdcc2e78a34ac5f0",
+          "pinNote": "Subtitle charset detection, -Duchardet=enabled in the video variant only."
+        }
+      },
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "rn-media PLAN.md 7.5",
+        "reason": "video variant only; the Android fork builds no video variant."
+      }
+    },
+    "fftools-ffi": {
+      "role": "video-variant",
+      "patched": false,
+      "upstream": { "kind": "none", "reason": "inherited from upstream libmpv-darwin-build" },
+      "pins": {
+        "darwin": {
+          "version": "9b0d4da0",
+          "fetch": "tarball",
+          "url": "https://github.com/moffatman/fftools-ffi/archive/9b0d4da026d9c830702ec043c1f1f98d407025af.tar.gz",
+          "sha256": "mgf3ddt3yjmYBd2D0WeEnhgxKNjrEbjYnDx2t4YCfU8=",
+          "pinNote": "Inherited from upstream libmpv-darwin-build and not reached by any variant we ship. NOTE the sha256 is recorded in nix SRI base64, not hex, because that is what packages.lock.nix carries; it is transcribed verbatim rather than converted so the two files can be diffed."
+        }
+      },
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "libmpv-darwin-build packages.lock.nix",
+        "reason": "Upstream inheritance, not our dependency. Recorded so the manifest is a complete picture of the darwin fork rather than a filtered one; a future cleanup should delete it from the fork."
+      }
+    }
+  },
+  "toolchains": {
+    "androidNdk": {
+      "platform": "android",
+      "version": "27.1.12297006",
+      "source": "libmpv-android-audio-build buildscripts/include/depinfo.sh (v_ndk), and hard-coded again in buildscripts/rn-media-release.sh's llvm-strip path",
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "n/a",
+        "reason": "Platform-native toolchain; there is no darwin counterpart to compare it with."
+      }
+    },
+    "androidSdk": {
+      "platform": "android",
+      "version": "11076708_latest",
+      "source": "libmpv-android-audio-build buildscripts/include/depinfo.sh (v_sdk)",
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "n/a",
+        "reason": "Platform-native toolchain."
+      }
+    },
+    "androidBuildTools": {
+      "platform": "android",
+      "version": "35.0.0",
+      "source": "libmpv-android-audio-build buildscripts/include/depinfo.sh (v_sdk_build_tools)",
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "n/a",
+        "reason": "Platform-native toolchain."
+      }
+    },
+    "xcode": {
+      "platform": "darwin",
+      "version": "16.1.0",
+      "source": "libmpv-darwin-build .github/workflows/ci.yaml (/Applications/Xcode_16.1.0.app) and .nix/config/xcode.path",
+      "divergence": {
+        "kind": "platform-scope",
+        "status": "intentional",
+        "ref": "n/a",
+        "reason": "Platform-native toolchain. Pinned in a workflow file and a config file rather than in a manifest, which is itself worth fixing but is not a version divergence."
+      }
+    }
+  }
+}

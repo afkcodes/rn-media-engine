@@ -1,0 +1,25 @@
+--- a/meson.build
++++ b/meson.build
+@@ -1783,9 +1783,21 @@
+ minor = client_h_define.split('|')[1].strip('() ')
+ client_api_version = major + '.' + minor + '.0'
+ 
++# rn-media: pin libmpv's export list on Apple. mpv 0.37 deleted libmpv/mpv.def
++# and with it the generated version script, leaving gnu_symbol_visibility to
++# govern mpv's own objects and nothing else -- so a statically linked
++# libplacebo leaks its ~570 PL_API symbols into the dylib. The flag is scoped
++# to THIS link on purpose: put on the cross file's *_link_args it would also
++# ride on every meson compiler check.
++libmpv_link_args = cc.get_supported_link_arguments(['-Wl,-Bsymbolic'])
++if darwin
++    libmpv_link_args += ['-Wl,-exported_symbols_list,' +
++                         join_paths(source_root, 'rn-media-mpv.exp')]
++endif
++
+ libmpv = library('mpv', sources, dependencies: dependencies, gnu_symbol_visibility: 'hidden',
+                  include_directories: incdir_public,
+-                 link_args: cc.get_supported_link_arguments(['-Wl,-Bsymbolic']),
++                 link_args: libmpv_link_args,
+                  version: client_api_version, install: get_option('libmpv'),
+                  build_by_default: get_option('libmpv'))
+ 

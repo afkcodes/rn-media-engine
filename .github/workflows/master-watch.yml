@@ -1,0 +1,92 @@
+name: Master watch
+
+# A weekly dry run of the whole patch series against mpv master and FFmpeg
+# master, so we learn that an anchor moved BEFORE the release lands rather than
+# during the two-week evaluation window the currency rule gives us.
+#
+# Same shape as rn-media's .github/workflows/upstream-currency.yml, and the same
+# discipline: it SURFACES and nothing else. It never bumps a pin, never opens a
+# PR, and never edits a patch. Rebasing a patch series is not a robot's job.
+#
+# Breakage here is expected and is the product. `master` is a moving target and
+# a rejection against it is information, not an incident — which is why this
+# workflow maintains a tracking issue rather than failing the build.
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    # Tuesdays 05:23 UTC. Offset from rn-media's Monday watcher so the two do
+    # not land together, and early enough that a Tuesday finding still leaves a
+    # working week.
+    - cron: '23 5 * * 2'
+  workflow_dispatch:
+  # A change to the dry-run machinery re-runs it immediately: the issue upkeep
+  # is idempotent, so this costs nothing and proves the edit works on the commit
+  # that made it rather than up to seven days later.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/master-watch.yml'
+      - 'tools/lib/options-audit.js'
+      - 'tools/commands/dry-run.js'
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  dry-run:
+    name: Series + option semantics against upstream master
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      # To create the `engine-drift` label and to open/update/close the single
+      # tracking issue. Nothing else is written.
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Only the PINNED sources are cached. The master tarballs deliberately are
+      # not: caching a moving ref would report last week's master as this week's.
+      - name: Cache pinned sources
+        uses: actions/cache@v4
+        with:
+          path: .cache/sources
+          key: sources-${{ hashFiles('manifest/engine.json') }}
+          restore-keys: sources-
+
+      # If the series no longer applies to the PINNED sources, that is a real
+      # failure and it is not upstream's fault. Fail here rather than blaming
+      # master for it.
+      - name: workshop verify (pinned — must stay green)
+        run: ./workshop verify
+
+      - name: workshop dry-run against master
+        id: dry
+        run: |
+          set -o pipefail
+          ./workshop dry-run --mpv master --ffmpeg master 2>&1 | tee dry-run.txt
+          ./workshop dry-run --mpv master --ffmpeg master --json > dry-run.json
+
+      - name: Maintain the tracking issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node tools/watch-issue.mjs dry-run.json dry-run.txt
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dry-run-report
+          path: |
+            dry-run.txt
+            dry-run.json
+          retention-days: 30

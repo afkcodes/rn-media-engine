@@ -1,0 +1,69 @@
+// rn-media: arm/disarm the PCM tap and set its window, in samples per channel.
+// Writable so the whole feature is lazy: 0 (the default) means the audio
+// thread's tap path is one relaxed atomic load and nothing is allocated.
+static int mp_property_pcm_tap(void *ctx, struct m_property *prop,
+                               int action, void *arg)
+{
+    MPContext *mpctx = ctx;
+    switch (action) {
+    case M_PROPERTY_GET_TYPE:
+        *(struct m_option *)arg = (struct m_option){
+            .type = CONF_TYPE_INT,
+            .min = 0,
+            .max = MP_PCM_TAP_MAX_FRAMES,
+        };
+        return M_PROPERTY_OK;
+    case M_PROPERTY_GET:
+        *(int *)arg = mp_pcm_tap_window(mpctx->global);
+        return M_PROPERTY_OK;
+    case M_PROPERTY_SET: {
+        int frames = *(int *)arg;
+        mp_pcm_tap_configure(mpctx->global, frames);
+        MP_VERBOSE(mpctx, "[rn-media] pcm-tap window=%d\n",
+                   mp_pcm_tap_window(mpctx->global));
+        return M_PROPERTY_OK;
+    }
+    }
+    return M_PROPERTY_NOT_IMPLEMENTED;
+}
+
+// rn-media: the newest tapped window, as interleaved float32.  Unavailable
+// while the tap is disarmed or before any audio has reached the device.
+static int mp_property_pcm_tap_frame(void *ctx, struct m_property *prop,
+                                     int action, void *arg)
+{
+    MPContext *mpctx = ctx;
+    if (action == M_PROPERTY_GET_TYPE) {
+        *(struct m_option *)arg = (struct m_option){.type = CONF_TYPE_NODE};
+        return M_PROPERTY_OK;
+    }
+    if (action != M_PROPERTY_GET)
+        return M_PROPERTY_NOT_IMPLEMENTED;
+
+    void *tmp = talloc_new(NULL);
+    struct mp_pcm_tap_frame f = {0};
+    if (!mp_pcm_tap_read(mpctx->global, tmp, &f)) {
+        talloc_free(tmp);
+        return M_PROPERTY_UNAVAILABLE;
+    }
+
+    struct mpv_node *r = (struct mpv_node *)arg;
+    node_init(r, MPV_FORMAT_NODE_MAP, NULL);
+    node_map_add_int64(r, "sample_rate", f.rate);
+    node_map_add_int64(r, "channels", f.channels);
+    node_map_add_int64(r, "frames", f.frames);
+    node_map_add_int64(r, "pts_us", f.pts_us);
+    node_map_add_int64(r, "seq", f.seq);
+    struct mpv_byte_array *ba =
+        node_map_add(r, "samples", MPV_FORMAT_BYTE_ARRAY)->u.ba;
+    size_t bytes = (size_t)f.floats * sizeof(float);
+    *ba = (struct mpv_byte_array){
+        .data = talloc_memdup(ba, f.data, bytes),
+        .size = bytes,
+    };
+
+    talloc_free(tmp);
+    return M_PROPERTY_OK;
+}
+
+static int mp_property_audio_params(void *ctx, struct m_property *prop,

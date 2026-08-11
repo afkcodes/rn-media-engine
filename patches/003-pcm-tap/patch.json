@@ -1,0 +1,71 @@
+{
+  "id": "003-pcm-tap",
+  "summary": "A PCM tap on the client API: properties `pcm-tap` (window, r/w) and `pcm-tap-frame` (node, r/o).",
+  "kind": "anchored",
+  "marker": "[rn-media] pcm-tap window=",
+  "deps": [
+    "mpv"
+  ],
+  "platforms": [
+    "android",
+    "darwin"
+  ],
+  "variants": [
+    "audio",
+    "video"
+  ],
+  "verification": {
+    "mode": "series"
+  },
+  "transforms": [
+    {
+      "file": "audio/out/ao.c",
+      "expectCount": 1,
+      "note": "C11 atomics for the tap pointer and the armed flag",
+      "pristine": "#include <assert.h>\n",
+      "patched": "#include <assert.h>\n#include <stdatomic.h>\n"
+    },
+    {
+      "file": "audio/out/ao.c",
+      "expectCount": 1,
+      "note": "mp_mutex_* wrappers (0.37+) and mp_time_ns()",
+      "pristine": "#include \"common/global.h\"\n",
+      "patched": "#include \"common/global.h\"\n#include \"osdep/threads.h\"\n#include \"osdep/timer.h\"\n"
+    },
+    {
+      "file": "audio/out/ao.c",
+      "expectCount": 1,
+      "note": "the tap implementation, plus the tap call as the last statement of ao_post_process_data()",
+      "pristineFile": "fragments/ao.c-tap-and-post-process.pristine.txt",
+      "patchedFile": "fragments/ao.c-tap-and-post-process.patched.txt"
+    },
+    {
+      "file": "audio/out/ao.h",
+      "expectCount": 1,
+      "note": "the public tap API, ahead of the include guard",
+      "pristineFile": "fragments/ao.h-public-api.pristine.txt",
+      "patchedFile": "fragments/ao.h-public-api.patched.txt"
+    },
+    {
+      "file": "common/global.h",
+      "expectCount": 1,
+      "note": "one tap per mpv core, hung off mpv_global",
+      "pristineFile": "fragments/global.h-pcm-tap-member.pristine.txt",
+      "patchedFile": "fragments/global.h-pcm-tap-member.patched.txt"
+    },
+    {
+      "file": "player/command.c",
+      "expectCount": 1,
+      "note": "the two property handlers, above mp_property_audio_params()",
+      "pristineFile": "fragments/command.c-property-handlers.pristine.txt",
+      "patchedFile": "fragments/command.c-property-handlers.patched.txt"
+    },
+    {
+      "file": "player/command.c",
+      "expectCount": 1,
+      "note": "the two property-table rows, after audio-out-params",
+      "pristineFile": "fragments/command.c-property-table.pristine.txt",
+      "patchedFile": "fragments/command.c-property-table.patched.txt"
+    }
+  ]
+}

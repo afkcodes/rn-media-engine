@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "note": [
+    "Patch APPLY ORDER, declared. Both forks leave it implicit today — the Android fork encodes it in a",
+    "filename glob (`patches/mpv/*`), the darwin fork in the order of `patch -p1` lines inside a .nix string —",
+    "and ales-drnz encodes it in the body of a shell function with the constraint written only as a comment",
+    "(\"MUST run before strip_libass\"). None of the three can be diffed against the others, which is how the",
+    "two forks came to apply the same patches in different orders without anyone noticing.",
+    "",
+    "The `NNN-` prefix on a patch directory is stable IDENTITY, not order. It cannot be order: the darwin fork",
+    "applies its export-list patch BEFORE the libass strip, and the Android fork has no export-list patch at",
+    "all, so no single numbering can encode both platforms' sequences. Order is therefore declared here, per",
+    "dependency and per platform, and the workshop applies exactly this list in exactly this sequence.",
+    "",
+    "Variants are not part of the key. Each patch declares which variants it belongs to in its own patch.json,",
+    "and the workshop filters this list by that: 002-remove-libass is audio-only, 009/010 are video-only, and",
+    "everything else applies to both.",
+    "",
+    "ORDERING CONSTRAINTS that are real and must survive an edit here:",
+    "  * 002-remove-libass rewrites large regions of meson.build. 005-mpv-export-list also edits meson.build,",
+    "    at library('mpv'). Darwin applies 005 first and that is the order reproduced here.",
+    "  * 003-pcm-tap touches player/command.c in the audio-property region; 002-remove-libass touches the same",
+    "    file at the libass-version property getter, ~2600 lines away. They are order-independent in practice,",
+    "    and 003 runs last on both platforms anyway."
+  ],
+  "variantsByPlatform": {
+    "android": ["audio"],
+    "darwin": ["audio", "video"]
+  },
+  "series": {
+    "mpv": {
+      "android": ["001-lavc-set-java-vm", "002-remove-libass", "003-pcm-tap"],
+      "darwin": ["005-mpv-export-list", "006-mpv-fix-missing-objc", "007-mpv-audiounit-shared-session", "002-remove-libass", "003-pcm-tap"]
+    },
+    "ffmpeg": {
+      "android": [],
+      "darwin": ["009-ffmpeg-fix-vp9-hwaccel", "010-ffmpeg-fix-ios-hdr-texture"]
+    },
+    "libxml2": {
+      "darwin": ["008-ltmain-target-passthrough"]
+    },
+    "libass": {
+      "darwin": ["008-ltmain-target-passthrough"]
+    },
+    "libogg": {
+      "darwin": ["008-ltmain-target-passthrough"]
+    },
+    "libvorbis": {
+      "darwin": ["008-ltmain-target-passthrough"]
+    }
+  }
+}

@@ -1,0 +1,6 @@
+# Downloaded + extracted upstream sources, and every scratch tree the workshop
+# builds while applying a series. Nothing here is an input: everything is
+# reproducible from manifest/engine.json (url + sha256).
+.cache/
+node_modules/
+*.log

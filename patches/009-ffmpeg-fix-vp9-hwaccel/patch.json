@@ -1,0 +1,19 @@
+{
+  "id": "009-ffmpeg-fix-vp9-hwaccel",
+  "summary": "Restore a standalone vp9_videotoolbox decoder with the superframe bitstream filters VideoToolbox requires.",
+  "kind": "diff",
+  "diff": "009-ffmpeg-fix-vp9-hwaccel.diff",
+  "marker": "ff_vp9_videotoolbox_decoder",
+  "deps": [
+    "ffmpeg"
+  ],
+  "platforms": [
+    "darwin"
+  ],
+  "variants": [
+    "video"
+  ],
+  "verification": {
+    "mode": "series"
+  }
+}

@@ -1,0 +1,71 @@
+name: Verify
+
+# The gate. `workshop verify` proves that every patch in the declared series
+# applies cleanly, with no fuzz, to the exact bytes manifest/engine.json pins —
+# checksum verified — and that the manifests are internally consistent, and that
+# the anchored form of 003-pcm-tap is byte-identical to the unified diff both
+# forks ship today.
+#
+# All of it runs identically on a laptop: `./workshop verify && node --test`.
+# The tooling has zero runtime dependencies, so there is no `npm ci` step and no
+# lockfile to drift. A gate you can only run by pushing is a gate that rots.
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Patch series, manifests, equivalence
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          # No `cache: npm` on purpose: zero dependencies, nothing to restore.
+
+      # ~40 MB of upstream tarballs. Keyed on the manifest, so a pin change
+      # invalidates it and anything else reuses it. `verify` re-checks every
+      # sha256 on a cache hit anyway — a cached file that no longer matches its
+      # pin is deleted and re-downloaded rather than trusted.
+      - name: Cache upstream sources
+        uses: actions/cache@v4
+        with:
+          path: .cache/sources
+          key: sources-${{ hashFiles('manifest/engine.json') }}
+          restore-keys: sources-
+
+      # Fast, offline, and it fails in milliseconds on a broken declaration —
+      # so a typo in a patch.json does not cost a source download to discover.
+      - name: Unit tests (offline)
+        env:
+          WORKSHOP_SKIP_NETWORK_TESTS: '1'
+        run: node --test "tests/**/*.test.js"
+
+      - name: workshop verify
+        run: ./workshop verify
+
+      # Proves the CLI's read-only surface still renders. `--offline` keeps it
+      # off the GitHub API, which is rate-limited per runner IP and is not what
+      # this job is testing.
+      - name: workshop status
+        run: ./workshop status --offline
+
+      # Both patch kinds must round-trip through render-diff, since that is what
+      # review reads.
+      - name: workshop render-diff
+        run: |
+          ./workshop render-diff 003-pcm-tap > /dev/null
+          ./workshop render-diff 002-remove-libass > /dev/null

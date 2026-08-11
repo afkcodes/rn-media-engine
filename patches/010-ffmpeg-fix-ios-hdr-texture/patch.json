@@ -1,0 +1,19 @@
+{
+  "id": "010-ffmpeg-fix-ios-hdr-texture",
+  "summary": "Return BGRA instead of P010 for >8-bit VideoToolbox output on iOS, and make 32BGRA mappable without full range.",
+  "kind": "diff",
+  "diff": "010-ffmpeg-fix-ios-hdr-texture.diff",
+  "marker": "iOS doesn't support 10 bit textures in GLES",
+  "deps": [
+    "ffmpeg"
+  ],
+  "platforms": [
+    "darwin"
+  ],
+  "variants": [
+    "video"
+  ],
+  "verification": {
+    "mode": "series"
+  }
+}

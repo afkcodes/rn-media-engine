@@ -1,0 +1,9 @@
+    struct demux_packet_pool *packet_pool;
+    // rn-media: the PCM tap (audio/out/ao.c), or NULL until something arms it.
+    // It lives here, and not in a file-static, because one process runs several
+    // mpv cores and each has to tap its own audio.  It is published with a
+    // release store and read with an acquire load in ao.c, hence the C11
+    // atomic; mpv 0.41 builds as c11 and declares atomic members exactly this
+    // way (cf. `_Atomic float gain` in audio/out/internal.h).
+    _Atomic(struct mp_pcm_tap *) pcm_tap;
+};

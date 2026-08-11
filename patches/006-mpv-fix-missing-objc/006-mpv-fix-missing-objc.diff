@@ -1,0 +1,18 @@
+--- a/meson.build
++++ b/meson.build
+@@ -412,6 +412,7 @@
+                    required: get_option('cocoa'))
+ features += {'cocoa': cocoa.found()}
+ if features['cocoa']
++    add_languages('objc', native: false)
+     dependencies += cocoa
+     path_source += files('osdep/path-mac.m')
+     sources += files('osdep/language-mac.c',
+@@ -811,6 +812,7 @@
+ }
+ features += {'audiounit': audiounit['deps'].found() and audiounit['symbol']}
+ if features['audiounit']
++    add_languages('objc', native: false)
+     dependencies += audiounit['deps']
+     sources += files('audio/out/ao_audiounit.m')
+ endif

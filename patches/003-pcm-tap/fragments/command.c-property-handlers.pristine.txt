@@ -1,0 +1,1 @@
+static int mp_property_audio_params(void *ctx, struct m_property *prop,

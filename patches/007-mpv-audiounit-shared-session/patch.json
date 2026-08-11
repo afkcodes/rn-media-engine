@@ -1,0 +1,20 @@
+{
+  "id": "007-mpv-audiounit-shared-session",
+  "summary": "Reference-count the AVAudioSession in ao_audiounit so several mpv cores in one process do not fight over it.",
+  "kind": "diff",
+  "diff": "007-mpv-audiounit-shared-session.diff",
+  "marker": "audiounit_session_use_count",
+  "deps": [
+    "mpv"
+  ],
+  "platforms": [
+    "darwin"
+  ],
+  "variants": [
+    "audio",
+    "video"
+  ],
+  "verification": {
+    "mode": "series"
+  }
+}
