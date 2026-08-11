@@ -24,29 +24,57 @@
     "    and 003 runs last on both platforms anyway."
   ],
   "variantsByPlatform": {
-    "android": ["audio"],
-    "darwin": ["audio", "video"]
+    "android": [
+      "audio"
+    ],
+    "darwin": [
+      "audio",
+      "video"
+    ]
   },
   "series": {
     "mpv": {
-      "android": ["001-lavc-set-java-vm", "002-remove-libass", "003-pcm-tap"],
-      "darwin": ["005-mpv-export-list", "006-mpv-fix-missing-objc", "007-mpv-audiounit-shared-session", "002-remove-libass", "003-pcm-tap"]
+      "android": [
+        "001-lavc-set-java-vm",
+        "002-remove-libass",
+        "003-pcm-tap",
+        "004-prefetch-hook"
+      ],
+      "darwin": [
+        "005-mpv-export-list",
+        "006-mpv-fix-missing-objc",
+        "007-mpv-audiounit-shared-session",
+        "002-remove-libass",
+        "003-pcm-tap",
+        "004-prefetch-hook"
+      ]
     },
     "ffmpeg": {
       "android": [],
-      "darwin": ["009-ffmpeg-fix-vp9-hwaccel", "010-ffmpeg-fix-ios-hdr-texture"]
+      "darwin": [
+        "009-ffmpeg-fix-vp9-hwaccel",
+        "010-ffmpeg-fix-ios-hdr-texture"
+      ]
     },
     "libxml2": {
-      "darwin": ["008-ltmain-target-passthrough"]
+      "darwin": [
+        "008-ltmain-target-passthrough"
+      ]
     },
     "libass": {
-      "darwin": ["008-ltmain-target-passthrough"]
+      "darwin": [
+        "008-ltmain-target-passthrough"
+      ]
     },
     "libogg": {
-      "darwin": ["008-ltmain-target-passthrough"]
+      "darwin": [
+        "008-ltmain-target-passthrough"
+      ]
     },
     "libvorbis": {
-      "darwin": ["008-ltmain-target-passthrough"]
+      "darwin": [
+        "008-ltmain-target-passthrough"
+      ]
     }
   }
 }

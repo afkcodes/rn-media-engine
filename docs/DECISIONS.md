@@ -147,9 +147,14 @@ tree B = pristine mpv 0.41.0 + patches/003-pcm-tap via the anchored engine
 assert  A and B are byte-identical — every file, no exceptions
 ```
 
-Result: **832 files identical, zero differences.** A conversion without a
-byte-identity proof is a rewrite, and `patches/004-prefetch-hook/docs.md`
-requires the same proof of the next conversion.
+Result: **832 files identical, zero differences.**
+
+`004-prefetch-hook` was imported the same way and carries the same proof, also
+832 files with zero differences. The rule is now enforced structurally rather
+than by intent: `anchoredPatchesMissingProof()` fails `verify` if an anchored
+patch exists with no `tests/fixtures/<id>.reference.diff` to be proven against,
+so a conversion cannot ship without its proof and cannot be silently skipped.
+A conversion without a byte-identity proof is a rewrite.
 
 ---
 

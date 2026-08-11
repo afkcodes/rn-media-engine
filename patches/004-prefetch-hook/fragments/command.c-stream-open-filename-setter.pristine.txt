@@ -1,0 +1,8 @@
+    case M_PROPERTY_SET: {
+        if (mpctx->demuxer)
+            return M_PROPERTY_ERROR;
+        mpctx->stream_open_filename =
+            talloc_strdup(mpctx->stream_open_filename, *(char **)arg);
+        mp_notify_property(mpctx, prop->name);
+        return M_PROPERTY_OK;
+    }

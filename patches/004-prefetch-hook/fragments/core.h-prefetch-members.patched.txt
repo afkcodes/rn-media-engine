@@ -1,0 +1,19 @@
+    char *stream_open_filename;
+    // rn-media: true only while the "on_prefetch_load" hook runs inside
+    // prefetch_next() (player/loadfile.c). One flag, three jobs, because they
+    // cover exactly the same window:
+    //   - re-entry guard: the hook pumps mp_idle(), which reaches
+    //     handle_update_cache(), which calls prefetch_next() again;
+    //   - it lets mp_property_stream_open_filename() accept a write while the
+    //     CURRENTLY PLAYING track's demuxer is attached, without touching that
+    //     demuxer or any other state of the playing track (player/command.c);
+    //   - it gates prefetch_entry_id below.
+    // MPContext-scoped and not a file-static: one process runs several cores.
+    // Core thread only.
+    bool in_prefetch_hook;
+    // rn-media: playlist_entry.id of the entry being prefetched; valid only
+    // while in_prefetch_hook, 0 otherwise (ids start at 1). Exposed read-only
+    // as `prefetch-playlist-entry-id`, because the hook event carries no entry
+    // information and playlist-current-pos still points at the playing track.
+    uint64_t prefetch_entry_id;
+    char **playlist_paths;

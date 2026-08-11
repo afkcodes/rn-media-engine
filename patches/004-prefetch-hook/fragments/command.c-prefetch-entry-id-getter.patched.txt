@@ -1,0 +1,19 @@
+// rn-media: playlist_entry.id of the entry being prefetched, readable only
+// while the "on_prefetch_load" hook is running (player/loadfile.c).
+// Unavailable at every other time, because the value would be stale: it is the
+// hook's missing payload, not a piece of player state.
+//
+// Why it has to exist: mpv_event_hook carries only {name, id}, MPV_EVENT_START_FILE
+// has not been sent for a prefetched entry, and mpctx->playing /
+// playlist-current-pos still refer to the playing track. Without this the only
+// key a resolver has for the entry it is being asked about is the URL string.
+static int mp_property_prefetch_playlist_entry_id(void *ctx, struct m_property *prop,
+                                                  int action, void *arg)
+{
+    MPContext *mpctx = ctx;
+    if (!mpctx->in_prefetch_hook || !mpctx->prefetch_entry_id)
+        return M_PROPERTY_UNAVAILABLE;
+    return m_property_int64_ro(action, arg, mpctx->prefetch_entry_id);
+}
+
+static int mp_property_file_size(void *ctx, struct m_property *prop,

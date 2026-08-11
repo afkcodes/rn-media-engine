@@ -1,0 +1,5 @@
+void mp_hook_start(struct MPContext *mpctx, char *type);
+// rn-media: true if any client registered a handler for this hook name. Lets a
+// caller skip the setup around a hook that nobody is listening to.
+bool mp_hook_exists(struct MPContext *mpctx, const char *type);
+int mp_hook_continue(struct MPContext *mpctx, int64_t client_id, uint64_t id);

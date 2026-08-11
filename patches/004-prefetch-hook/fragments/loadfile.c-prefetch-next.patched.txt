@@ -1,0 +1,91 @@
+    if (!mpctx->opts->prefetch_open || mpctx->open_active)
+        return;
+
+    // rn-media: re-entry guard. The hook below pumps mp_idle(), which calls
+    // handle_update_cache(), which is the one caller of this function — and
+    // mpctx->open_active is still false at that point, so the test above does
+    // not catch it. On MPContext rather than in a file-static because one
+    // process runs several mpv cores.
+    if (mpctx->in_prefetch_hook)
+        return;
+
+    struct playlist_entry *new_entry = mp_next_file(mpctx, +1, false, false);
+    if (!new_entry || !new_entry->filename)
+        return;
+
+    MP_VERBOSE(mpctx, "Prefetching: %s\n", new_entry->filename);
+
+    // rn-media: `url` is borrowed from the entry until the hook block takes a
+    // copy, so with no hook registered nothing is allocated and the start_open()
+    // at the bottom receives exactly what upstream passes it.
+    char *url = new_entry->filename;
+    int stream_flags = new_entry->stream_flags;
+    char *owned = NULL;         // our copy of the URL; NULL unless we hook
+    bool resolved = false;
+
+    // rn-media: upstream never runs hooks here (DOCS/man/options.rst on
+    // --prefetch-playlist: "This does not work with URLs resolved by the
+    // youtube-dl wrapper, and it won't"), so a client that resolves URLs in
+    // on_load sees the prefetch reach the stream layer unresolved — and the
+    // prefetch is then thrown away at the boundary anyway, because
+    // open_demux_reentrant() compares mpctx->open_url against the post-on_load
+    // stream_open_filename byte-for-byte. A separate hook name and not
+    // "on_load": these are different phases (this one runs mid-track, and the
+    // entry may never play), and reusing the name would fire the same semantic
+    // hook twice per entry with no way for the client to tell them apart.
+    if (mp_hook_exists(mpctx, "on_prefetch_load") &&
+        mpctx->playing && mpctx->stream_open_filename)
+    {
+        // Snapshot HERE and stop looking at the entry: the hook re-enters the
+        // core, so a client can playlist-remove it and free it while the hook
+        // is open (common/playlist.c: playlist_remove -> playlist_entry_unref).
+        // `owned` is a talloc ROOT, because the stream-open-filename setter
+        // allocates the rewritten string as a child of whatever the field
+        // points at.
+        uint64_t entry_id = new_entry->id;
+        owned = talloc_strdup(NULL, new_entry->filename);
+        url = owned;
+        new_entry = NULL;
+
+        char *saved = mpctx->stream_open_filename;
+        // Only this one field is swapped. mpctx->filename, mpctx->playing and
+        // mpctx->demuxer keep describing the PLAYING track, which is still
+        // playing and is what a client reading `path` or `duration` means.
+        mpctx->stream_open_filename = owned;
+        mpctx->prefetch_entry_id = entry_id;
+        mpctx->in_prefetch_hook = true;
+
+        process_hooks(mpctx, "on_prefetch_load");
+
+        // Read back before the restore: the setter made the rewritten string a
+        // child of `owned`, so it dies with the talloc_free() below.
+        resolved = strcmp(mpctx->stream_open_filename, owned) != 0;
+        if (resolved) {
+            char *new_url = talloc_strdup(NULL, mpctx->stream_open_filename);
+            talloc_free(owned);
+            owned = url = new_url;
+        }
+
+        mpctx->in_prefetch_hook = false;
+        mpctx->prefetch_entry_id = 0;
+        mpctx->stream_open_filename = saved;
+
+        // A hook blocks the core for as long as the client wants it to, and the
+        // core kept servicing commands while it did: playback may be ending,
+        // and a load command may already have claimed the opener thread.
+        if (mpctx->stop_play || mpctx->open_active) {
+            talloc_free(owned);
+            return;
+        }
+
+        if (resolved)
+            MP_VERBOSE(mpctx, "[rn-media] prefetch hook resolved: %s\n", url);
+    }
+
+    // Unresolved, this is exactly what upstream does, with the same arguments.
+    // Resolved, the URL handed to the opener is the one the play-time on_load
+    // will also produce, which is what makes open_demux_reentrant()'s strcmp
+    // succeed and the prefetched demuxer actually get reused.
+    start_open(mpctx, url, stream_flags, true);
+    talloc_free(owned);         // ta_free() is a no-op on NULL
+}

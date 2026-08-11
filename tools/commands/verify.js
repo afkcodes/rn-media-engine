@@ -2,15 +2,16 @@
 //
 // Downloads the pinned sources by url + sha256, applies the full patch series
 // strictly (git apply for diffs, the anchored engine for transforms), checks the
-// manifests for undeclared divergence, and re-proves the 003 equivalence. Any
-// failure is a non-zero exit. Nothing here writes to the repo.
+// manifests for undeclared divergence, and re-proves every anchored conversion
+// against the diff it replaced. Any failure is a non-zero exit. Nothing here
+// writes to the repo.
 
 import { loadAllPatches, PatchError } from '../lib/patches.js';
 import { loadEngine, loadFlags, loadSeries, pinFor, seriesEntries } from '../lib/manifest.js';
 import { checkEngineDivergence, checkFlagDivergence, checkLgplInvariant } from '../lib/divergence.js';
 import { applySeries, variantGroups } from '../lib/apply.js';
 import { pristineTree, scratchCopy, clearWork, SourceError } from '../lib/cache.js';
-import { proveEquivalence } from '../lib/equivalence.js';
+import { proveAllEquivalences } from '../lib/equivalence.js';
 import { asciiTable, markdownTable } from '../lib/table.js';
 import { detail, heading, line, mark, stepSummary } from '../lib/log.js';
 
@@ -26,14 +27,16 @@ export function help() {
     '  2. the manifests are internally consistent — every measured cross-platform',
     '     divergence is declared, no declaration is stale, and the LGPL invariant',
     '     holds across every recorded flag scope;',
-    '  3. the anchored form of 003-pcm-tap produces a tree byte-identical to the',
-    '     unified diff both forks ship today.',
+    '  3. every ANCHORED patch produces a tree byte-identical to the unified diff',
+    '     it was converted from — the diff the forks ship — and every anchored',
+    '     patch has such a diff to be proven against.',
     '',
     'Usage: ./workshop verify [options]',
     '',
     'Options:',
     '  --only <dep>          verify one dependency only (mpv, ffmpeg, ...)',
-    '  --skip-equivalence    skip check 3 (it needs a second copy of the mpv tree)',
+    '  --skip-equivalence    skip check 3 (it needs two more copies of the tree per',
+    '                        converted patch)',
     '  --keep                do not delete the scratch trees on the way out',
     '  --json                machine-readable result',
     '  --help                this text',
@@ -153,26 +156,40 @@ export async function run({ flags }) {
   }
   record('patch-series', seriesOk, seriesOk ? 'every patch applied cleanly' : 'at least one patch failed');
 
-  // ── 4. the 003 equivalence proof ──────────────────────────────────────────
+  // ── 4. every anchored conversion is byte-identical to the diff it replaced ─
   let equivalence = null;
   if (flags['skip-equivalence'] || (flags.only && flags.only !== 'mpv')) {
     if (!json) {
-      heading('003-pcm-tap equivalence');
-      mark('skip', 'skipped by flag — the anchored form is NOT proven equal to the shipped diff in this run');
+      heading('Anchored-conversion equivalence');
+      mark('skip', 'skipped by flag — the anchored forms are NOT proven equal to the shipped diffs in this run');
     }
     record('equivalence', true, 'skipped by flag');
   } else {
     try {
-      equivalence = await proveEquivalence();
+      equivalence = await proveAllEquivalences();
       if (!json) {
-        heading('003-pcm-tap equivalence');
-        mark(equivalence.ok ? 'ok' : 'fail', equivalence.detail);
-        for (const d of equivalence.differences.slice(0, 20)) detail(d);
+        heading('Anchored-conversion equivalence');
+        for (const r of equivalence.results) {
+          mark(r.ok ? 'ok' : 'fail', r.detail);
+          for (const d of r.differences.slice(0, 20)) detail(d);
+        }
+        // An anchored patch with no reference diff is a conversion nobody
+        // checked. Staying quiet about it would lose the entire point.
+        for (const id of equivalence.missing) {
+          mark('fail', `${id}: anchored, but there is no tests/fixtures/${id}.reference.diff to prove it against`);
+        }
+        if (equivalence.results.length === 0 && equivalence.missing.length === 0) mark('skip', 'no anchored patches to prove');
       }
-      record('equivalence', equivalence.ok, equivalence.detail);
+      record(
+        'equivalence',
+        equivalence.ok,
+        equivalence.missing.length
+          ? `${equivalence.missing.length} anchored patch(es) with no reference diff: ${equivalence.missing.join(', ')}`
+          : `${equivalence.results.length} conversion(s) proven byte-identical`,
+      );
     } catch (e) {
       if (!json) {
-        heading('003-pcm-tap equivalence');
+        heading('Anchored-conversion equivalence');
         mark('fail', e.message);
       }
       record('equivalence', false, e.message);

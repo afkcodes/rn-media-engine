@@ -1,0 +1,16 @@
+// rn-media: true if any client registered a handler for `type`. mp_hook_start()
+// on an unregistered name is already harmless, but it still walks the list and
+// wakes the core; prefetch_next() uses this to skip the whole hook block —
+// including its allocation and its swap of stream_open_filename — so a build
+// with nobody listening behaves exactly like unpatched mpv.
+bool mp_hook_exists(struct MPContext *mpctx, const char *type)
+{
+    struct command_ctx *cmd = mpctx->command_ctx;
+    for (int n = 0; n < cmd->num_hooks; n++) {
+        if (strcmp(cmd->hooks[n]->type, type) == 0)
+            return true;
+    }
+    return false;
+}
+
+int mp_hook_continue(struct MPContext *mpctx, int64_t client_id, uint64_t id)

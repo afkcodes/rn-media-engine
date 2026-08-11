@@ -77,7 +77,12 @@ export async function run({ flags, positional }) {
       '',
     ].join('\n'),
   ];
-  for (const rel of patch.files) {
+  // Declaration order, not alphabetical. A patch's transforms are written in
+  // the order that tells its story — for 004 that is loadfile.c first, which is
+  // the whole point of the patch — while `patch.files` is sorted for lookups.
+  // This also makes the rendered output line up with the diff the forks ship.
+  const ordered = [...new Set(patch.transforms.map((t) => t.file))];
+  for (const rel of ordered) {
     out.push(diffFile(join(tree, rel), join(work, rel), rel));
   }
   for (const a of patch.assets) {

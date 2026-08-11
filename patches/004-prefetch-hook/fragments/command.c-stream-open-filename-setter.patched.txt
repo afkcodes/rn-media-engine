@@ -1,0 +1,27 @@
+    case M_PROPERTY_SET: {
+        // rn-media: the demuxer test rejects a write that could not take
+        // effect — on the normal path this property is only meaningful between
+        // "on_load" and the open, where play_current_file() asserts
+        // mpctx->demuxer == NULL. The "on_prefetch_load" hook runs mid-playback
+        // (player/loadfile.c, prefetch_next), where the CURRENTLY PLAYING
+        // track's demuxer is legitimately attached and is not what is about to
+        // be opened; the write is meaningful there, so allow it. This is the
+        // whole reason in_prefetch_hook exists: the alternative — NULL-masking
+        // mpctx->demuxer around the hook — would make ~50 other properties of
+        // the playing track read as unavailable and would suppress its underrun
+        // detection (handle_update_cache clears underruns and early-returns on
+        // a NULL demuxer) for the length of the hook.
+        if (mpctx->demuxer && !mpctx->in_prefetch_hook)
+            return M_PROPERTY_ERROR;
+        mpctx->stream_open_filename =
+            talloc_strdup(mpctx->stream_open_filename, *(char **)arg);
+        // Deliberately silent during the prefetch hook: prefetch_next() points
+        // this field at the NEXT entry's URL for the length of the hook and
+        // restores it afterwards, so the value an observer cares about — the
+        // playing track's — never changes. Notifying would leave every observer
+        // holding the prefetch URL forever, since the restore cannot notify
+        // back without also announcing a change that never happened.
+        if (!mpctx->in_prefetch_hook)
+            mp_notify_property(mpctx, prop->name);
+        return M_PROPERTY_OK;
+    }

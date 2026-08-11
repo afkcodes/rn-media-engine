@@ -1,0 +1,1 @@
+int mp_hook_continue(struct MPContext *mpctx, int64_t client_id, uint64_t id)

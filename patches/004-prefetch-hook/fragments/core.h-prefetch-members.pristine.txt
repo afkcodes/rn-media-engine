@@ -1,0 +1,2 @@
+    char *stream_open_filename;
+    char **playlist_paths;

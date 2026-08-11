@@ -1,0 +1,2 @@
+void mp_hook_start(struct MPContext *mpctx, char *type);
+int mp_hook_continue(struct MPContext *mpctx, int64_t client_id, uint64_t id);

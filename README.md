@@ -68,7 +68,7 @@ affordable.
 | [`001-lavc-set-java-vm`](patches/001-lavc-set-java-vm/docs.md) | diff | mpv | android | Exports `mpv_lavc_set_java_vm` so the app's `JNI_OnLoad` can hand mpv the `JavaVM`. Without it the AudioTrack output cannot attach a `JNIEnv` and there is no audio. |
 | [`002-remove-libass`](patches/002-remove-libass/docs.md) | diff | mpv | shared | Strips libass + freetype + fribidi + harfbuzz out of the audio-only build, replacing them with a stub. |
 | [`003-pcm-tap`](patches/003-pcm-tap/docs.md) | **anchored** | mpv | shared | Adds `pcm-tap` / `pcm-tap-frame` properties: the newest window of post-DSP audio, as interleaved float32, for the visualizer. No new exported symbol — the ABI is untouched. |
-| [`004-prefetch-hook`](patches/004-prefetch-hook/docs.md) | *reserved* | mpv | shared | Slot claimed; the patch is being authored in the Android fork and is imported once it lands. |
+| [`004-prefetch-hook`](patches/004-prefetch-hook/docs.md) | **anchored** | mpv | shared | Runs a client hook (`on_prefetch_load`) on mpv's prefetch path, so a URL-rewriting resolver sees the prefetched entry. Upstream calls this permanent (*"does not work with URLs resolved by the youtube-dl wrapper, and it won't"*), and without it `prefetch-playlist` plus a resolver is measurably *worse* than no prefetch. |
 | [`005-mpv-export-list`](patches/005-mpv-export-list/docs.md) | diff | mpv | darwin | Pins the Mach-O export list to 54 public `mpv_*` names, so a statically linked libplacebo does not leak ~570 symbols into the framework. |
 | [`006-mpv-fix-missing-objc`](patches/006-mpv-fix-missing-objc/docs.md) | diff | mpv | darwin | Enables Objective-C where the cocoa/audiounit features are switched on, rather than only where a macOS SDK probe succeeds — the probe does not resolve in our nix sandbox. |
 | [`007-mpv-audiounit-shared-session`](patches/007-mpv-audiounit-shared-session/docs.md) | diff | mpv | darwin | Reference-counts `AVAudioSession` so several mpv cores in one process do not deactivate it under each other, plus an opt-out for hosts that own the session themselves. |
@@ -194,7 +194,7 @@ check cannot answer at all:
 things: every patch applies cleanly with no fuzz to the exact bytes the manifest
 pins, checked by sha256; the manifests are internally consistent; and the
 anchored form of `003-pcm-tap` produces a tree **byte-identical** to the unified
-diff both forks ship today — 832 files, no exceptions.
+diff both forks ship today — 832 files, no exceptions, for every converted patch.
 
 ---
 

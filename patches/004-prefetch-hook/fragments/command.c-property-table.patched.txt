@@ -1,0 +1,2 @@
+    {"stream-open-filename", mp_property_stream_open_filename},
+    {"prefetch-playlist-entry-id", mp_property_prefetch_playlist_entry_id},

@@ -1,7 +1,8 @@
 {
   "id": "004-prefetch-hook",
-  "summary": "RESERVED — the prefetch hook, being authored in the Android fork.",
-  "status": "reserved",
+  "summary": "Run a client hook (`on_prefetch_load`) on mpv's prefetch path, so a URL-rewriting resolver sees the prefetched entry.",
+  "kind": "anchored",
+  "marker": "[rn-media] prefetch hook resolved: ",
   "deps": [
     "mpv"
   ],
@@ -13,5 +14,58 @@
     "audio",
     "video"
   ],
-  "todo": "A prefetch-hook patch was in flight in libmpv-android-audio-build@rn-media-hls (buildscripts/patches/mpv/006.rn_media_prefetch_hook.patch) when this workshop was built, authored by another agent. It is deliberately NOT copied here: importing a patch mid-authoring would fork it. Import it once it has landed and been reviewed, as `kind: anchored` — it is a feature insertion across several player/ files, which is exactly the shape the anchored format exists for, and ales-drnz's equivalent (patch_prefetch_state.py) is the specific patcher whose `if pristine in text: replace()` loop silently applies a SUBSET of its call sites. Give every call site its own transform with an explicit expectCount so that defect is unreachable here."
+  "verification": {
+    "mode": "series"
+  },
+  "transforms": [
+    {
+      "file": "player/loadfile.c",
+      "expectCount": 1,
+      "note": "prefetch_next() body: re-entry guard, the hook block, and the start_open() call",
+      "pristineFile": "fragments/loadfile.c-prefetch-next.pristine.txt",
+      "patchedFile": "fragments/loadfile.c-prefetch-next.patched.txt"
+    },
+    {
+      "file": "player/core.h",
+      "expectCount": 1,
+      "note": "in_prefetch_hook + prefetch_entry_id on MPContext, not a file-static",
+      "pristineFile": "fragments/core.h-prefetch-members.pristine.txt",
+      "patchedFile": "fragments/core.h-prefetch-members.patched.txt"
+    },
+    {
+      "file": "player/command.c",
+      "expectCount": 1,
+      "note": "mp_hook_exists(), ahead of mp_hook_continue()",
+      "pristineFile": "fragments/command.c-mp-hook-exists.pristine.txt",
+      "patchedFile": "fragments/command.c-mp-hook-exists.patched.txt"
+    },
+    {
+      "file": "player/command.c",
+      "expectCount": 1,
+      "note": "allow the write during the prefetch hook, and stay silent about it",
+      "pristineFile": "fragments/command.c-stream-open-filename-setter.pristine.txt",
+      "patchedFile": "fragments/command.c-stream-open-filename-setter.patched.txt"
+    },
+    {
+      "file": "player/command.c",
+      "expectCount": 1,
+      "note": "the prefetch-playlist-entry-id handler, above mp_property_file_size()",
+      "pristineFile": "fragments/command.c-prefetch-entry-id-getter.pristine.txt",
+      "patchedFile": "fragments/command.c-prefetch-entry-id-getter.patched.txt"
+    },
+    {
+      "file": "player/command.c",
+      "expectCount": 1,
+      "note": "the property-table row, after stream-open-filename",
+      "pristineFile": "fragments/command.c-property-table.pristine.txt",
+      "patchedFile": "fragments/command.c-property-table.patched.txt"
+    },
+    {
+      "file": "player/command.h",
+      "expectCount": 1,
+      "note": "the mp_hook_exists() declaration in the mp_hook_* block",
+      "pristineFile": "fragments/command.h-mp-hook-exists-decl.pristine.txt",
+      "patchedFile": "fragments/command.h-mp-hook-exists-decl.patched.txt"
+    }
+  ]
 }
