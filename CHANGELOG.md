@@ -79,7 +79,12 @@ binaries they ship.
   design** — the check reports what shipped, not what is fixed in source. On the
   next release the simulator slice's `audio-output` and `patch-markers` cells
   flip to PASS and its size jumps, which is the AO and `ao_audiounit.m` entering
-  the binary rather than a regression.
+  the binary rather than a regression. **Verified against the CI artifact from
+  that commit** rather than predicted: the simulator slice now carries
+  `audiounit` (and no second AO), carries patch 007's markers, reads
+  `-Daudiounit=enabled`, and grows 5,527,008 → 5,548,256 B (+21,248 B). The
+  device slice is byte-for-byte the same size, so the change touched only the
+  simulator path.
 * Everything else is green: 48 pass, 2 fail, 46 n/a (each with a reason), 24
   informational across 120 cells. Android is clean on all four ABIs — 55 exports
   all `mpv_*`, 16 KB aligned, no libass/freetype/fribidi/harfbuzz in DT_NEEDED,
