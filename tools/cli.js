@@ -14,6 +14,8 @@ export const COMMANDS = {
   status: { load: () => import('./commands/status.js'), blurb: 'pins vs upstream latest, divergence table, patch inventory' },
   verify: { load: () => import('./commands/verify.js'), blurb: 'apply the full patch series to the pinned sources (the gate)' },
   'dry-run': { load: () => import('./commands/dry-run.js'), blurb: 'the same, against a candidate version, plus an option-semantics audit' },
+  'verify-artifacts': { load: () => import('./commands/verify-artifacts.js'), blurb: 'the shipped-artifact matrix over both forks\' releases' },
+  sync: { load: () => import('./commands/sync.js'), blurb: 'generate the forks\' patch files from the canonical copies' },
   'render-diff': { load: () => import('./commands/render-diff.js'), blurb: 'materialise a patch as a unified diff, whatever its canonical form' },
   'new-patch': { load: () => import('./commands/new-patch.js'), blurb: 'scaffold a new patch directory' },
 };

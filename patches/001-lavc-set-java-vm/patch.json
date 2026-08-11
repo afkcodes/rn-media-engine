@@ -16,5 +16,8 @@
   ],
   "verification": {
     "mode": "series"
-  }
+  },
+  "markers": [
+    "mpv_lavc_set_java_vm"
+  ]
 }

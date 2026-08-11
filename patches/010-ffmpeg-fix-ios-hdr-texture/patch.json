@@ -15,5 +15,7 @@
   ],
   "verification": {
     "mode": "series"
-  }
+  },
+  "markers": [],
+  "markersNote": "Video variant only — it is in no audio artifact, and the audio artifacts are what rn-media ships."
 }

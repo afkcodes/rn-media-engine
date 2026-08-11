@@ -198,6 +198,60 @@ diff both forks ship today — 832 files, no exceptions, for every converted pat
 
 ---
 
+## Keeping the forks in sync
+
+The forks do not hold canonical patches any more — they hold **generated** ones.
+
+```sh
+./workshop sync           # regenerate both forks' patch files from patches/
+./workshop sync --check   # write nothing; exit non-zero if a fork has drifted
+```
+
+Every generated file opens with `GENERATED from rn-media-engine patches/<id> —
+edit THERE, sync here` and closes its header with a `WORKSHOP` block naming the
+canonical source, the patch kind, its marker, its variant gating, and which
+script or derivation applies it. Output is byte-stable, so `sync --check` is a
+usable gate — it runs in this repo's CI against both forks' branch heads, and
+fork drift is a red build **here**. The fork CIs are deliberately untouched.
+
+`--check` separates **header drift** from **body drift**: rewriting prose is
+routine, rewriting a diff body means the patch content moved, and that needs
+`--allow-body-change` and a good reason. The first migration rewrote 13 headers
+and **zero** bytes of any diff body.
+
+## Verifying what actually shipped
+
+Everything above checks *sources*. This checks the binaries a user downloads:
+
+```sh
+./workshop verify-artifacts --android-tag v1.1.9-rnmedia.6 --darwin-tag v0.7.2-rnmedia.5
+```
+
+A **fixed** matrix of ten categories over every slice — all four Android ABIs,
+both iOS slices, plus dependency frameworks as spot checks:
+
+| | |
+| --- | --- |
+| `identity` | sha256 and format (reported, not asserted — there is no pin for a release asset) |
+| `exports` | the shipped symbol set against `assets/export-lists/` |
+| `export-purity` | zero non-`mpv_*` exports — the invariant the export lists exist for |
+| `patch-markers` | every patch's declared marker strings, from the patch manifests |
+| `page-alignment` | 16 KB pages (Android 15+ will not load a 4 KB-aligned `.so`) |
+| `dt-needed` | no libass/freetype/fribidi/harfbuzz — how a deletion patch gets checked |
+| `lgpl` | FFmpeg's embedded configure line: no `--enable-gpl`, no `--enable-nonfree` |
+| `audio-output` | exactly one AO, the right one |
+| `components` | the HLS demuxer and all 17 audio filters |
+| `size-delta` | against the previous release's assets |
+
+Fixed is the point. Every slice runs every category, and a category that does not
+apply prints `∅` **with its reason** — so comparability across platforms is
+enforced by shape rather than by hoping two reports mean the same thing.
+
+It found a real one on its first run: the **iOS Simulator slice ships with no
+audio output at all** (`-Daudiounit=disabled … -Dcoreaudio=disabled` in its own
+embedded meson line), while the device slice is correct and the Android emulator
+ABIs carry `audiotrack`. That check stays red until the fork is fixed.
+
 ## How a release works
 
 Not yet, and this repo says so rather than implying otherwise.

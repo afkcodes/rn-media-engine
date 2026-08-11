@@ -4,6 +4,75 @@ This repository's own version, tracked **independently** of the mpv it patches.
 The workshop is a tool; the engine versions it pins live in
 `manifest/engine.json`.
 
+## 0.3.0 — 2026-08-12
+
+Phases 2 and 3: the workshop now GENERATES the forks' patch files, and checks the
+binaries they ship.
+
+### Added — `workshop sync` (phase 2, D2 model (d))
+
+* Generates each fork's patch files from the canonical copies: header prose from
+  `docs.md`, a `WORKSHOP` block, and the diff body — for anchored patches
+  rendered through the same machinery as `render-diff`. Output is **byte-stable**
+  (no timestamps, no version stamps, no blob hashes), so `sync` followed by
+  `sync --check` is always green.
+* `sync --check` writes nothing and exits non-zero listing every fork file that
+  differs, reporting **header drift and body drift separately** — rewriting prose
+  is routine, rewriting patch content is an incident. Writing a changed body
+  requires `--allow-body-change`.
+* `manifest/forks.json` declares each fork's repo, branch, patch directory, how
+  patches are applied there (per dependency), and the canonical-id → filename
+  map. The map is explicit because the Android fork numbers the same patches
+  002/003/004/006 where the workshop numbers them 001–004: its numbering carries
+  its apply order, so renumbering would risk reordering the series for no gain.
+* CI job `fork-sync` clones both forks' `rn-media-hls` shallow and runs
+  `sync --check`. Fork drift is now a red build **here**; the fork CIs are
+  untouched.
+* **Both forks migrated and pushed.** All 13 files regenerated;
+  **every diff body byte-identical**, verified by hashing each body before and
+  after. Seven darwin files gained a header for the first time — the
+  darwin-native patches shipped as bare diffs with their rationale living only in
+  nix comments. Both forks' CI ran green on the sync commits.
+
+### Added — `workshop verify-artifacts` (phase 3, D5(d))
+
+* A **fixed 10-category matrix** over every shipped slice: all four Android ABIs
+  from their jars, both iOS slices of `Mpv.xcframework`, and the Avutil/Avformat/
+  Avfilter frameworks as spot checks. Categories: identity+sha256, export set,
+  export purity, patch markers, 16 KB page alignment, DT_NEEDED allow-list, LGPL
+  invariant, audio output, HLS+16 filters, size delta vs the previous release.
+* Fixed is the point, borrowed from ales-drnz's `verify_binaries.sh`: every slice
+  runs every category and **every `∅` carries a printed reason**, so
+  "iOS passed 8" and "Android passed 9" can never quietly mean different things.
+* Expectations are derived from the forks' own linker files, not invented:
+  `assets/export-lists/mpv.exp` IS the darwin 54, and the Android 55 is that plus
+  `mpv_lavc_set_java_vm`, the one export patch 001 adds.
+* Marker strings come **from the patch manifests** — every patch now declares
+  `markers`, and an empty list must carry a `markersNote` saying why (enforced by
+  the loader). Adding a patch adds its own artifact assertion.
+* Tags are required arguments with no defaults, because this repo deliberately
+  records no fork release tags.
+
+### Found by the matrix
+
+* **The iOS SIMULATOR slice ships with no audio output at all.** Its own embedded
+  meson line reads `-Daudiounit=disabled -Davfoundation=disabled
+  -Daudiotrack=disabled -Daaudio=disabled -Dcoreaudio=disabled
+  -Dopensles=disabled`. The device slice (`ios-arm64`) is correct. Consequence:
+  libmpv cannot play audio in the iOS Simulator, and patch
+  007-mpv-audiounit-shared-session is absent from that slice because
+  `ao_audiounit.m` was never compiled into it. The Android x86/x86_64 emulator
+  ABIs *do* carry `audiotrack`, so this is a real cross-platform parity gap for
+  developers. Cause is visible in `mk-pkg-mpv/default.nix`: `IOS_OPTIONS`
+  (`-Daudiounit=enabled`) is applied only when the os is `ios`, and the simulator
+  builds under a different os value, falling through to `DISABLE_ALL_OPTIONS`.
+  **Reported, not worked around** — the check stays red.
+* Everything else is green: 48 pass, 2 fail, 46 n/a (each with a reason), 24
+  informational across 120 cells. Android is clean on all four ABIs — 55 exports
+  all `mpv_*`, 16 KB aligned, no libass/freetype/fribidi/harfbuzz in DT_NEEDED,
+  `--disable-gpl` in the embedded configure line, HLS demuxer and all 17 audio
+  filters present.
+
 ## 0.2.1 — 2026-08-11
 
 ### Fixed

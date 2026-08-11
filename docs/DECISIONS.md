@@ -196,8 +196,24 @@ generator in `--check` mode.
 * `manifest/series.json` already knows each fork's apply order, which is the one
   thing a generator cannot infer.
 
-**Not done, and deliberately:** nothing in this repo writes to either fork, and
-nothing in either fork reads this repo yet. Phase 1 is a mirror, not yet a source.
+### Delivered in 0.3.0
+
+`workshop sync` generates both forks' patch directories; `sync --check` runs in
+CI against both branch heads. The first migration rewrote 13 headers and **zero**
+bytes of any diff body, proven by hashing each body before and after.
+
+Two warts were needed to make that first sync a byte-level no-op, and both are
+recorded in the patches that carry them rather than hidden in the generator:
+
+* `render.hunkFuncContext` — 003's fork copy carries git's function context in
+  its hunk headers and 004's does not, because different tooling produced them.
+* `render.base` — 003's hunk line numbers are counted from a pristine tree,
+  004's from the tree with 002 and 003 already applied (its actual position in
+  the series), which is why its `command.c` hunks sit ~70 lines lower.
+
+Both exist only to avoid rewriting bytes nobody changed. Now that every fork file
+is generated, either can be normalised away in a single commit whose diff is
+purely mechanical — which is the point of owning the generator.
 
 ---
 
@@ -462,13 +478,16 @@ shipped-artifact matrix.
 Stated plainly so no one reads a green board as more than it is:
 
 * It does not **build** anything. Patches applying is not code compiling.
-* It does not inspect a **shipped artifact**: no export-count check, no
-  16 KB page-alignment check, no `DT_NEEDED` allow-list, no demuxer/filter
-  presence probe, no assertion that the shipped dylib was not built from the
-  `encodersgpl` flavour. The LGPL invariant is checked against the flag lists
-  only, and says so.
-* It does not **write** to either fork, and neither fork reads it. Phase 1 is a
-  mirror.
+* It does not inspect a **shipped artifact** — *superseded in 0.3.0 by
+  `workshop verify-artifacts`, which does exactly this: export counts against the
+  canonical lists, export purity, 16 KB page alignment, the `DT_NEEDED`
+  allow-list, demuxer and filter presence, and the LGPL invariant asserted on
+  FFmpeg's embedded configure line rather than on a flag list. What remains
+  unchecked is a runtime load test (ales-drnz runs `dlopen` under qemu) and any
+  assertion that a given asset was built from the flavour it claims.*
+* It does not **write** to either fork — *superseded in 0.3.0 by `workshop
+  sync`.* Neither fork reads this repo at build time, and that stays true by
+  design: the forks remain self-contained and offline-buildable.
 * It does not **release** anything (D4).
 * The flag divergence findings are strong signals from declared flags, not
   measurements of binaries.

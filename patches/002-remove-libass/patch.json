@@ -16,5 +16,7 @@
   ],
   "verification": {
     "mode": "series"
-  }
+  },
+  "markers": [],
+  "markersNote": "This patch's effect is DELETION — libass and transitively freetype, fribidi and harfbuzz are absent from the link — and absence has no string to grep for. It is asserted instead by the dt-needed category, which is the only honest way to check a patch whose entire content is removal."
 }

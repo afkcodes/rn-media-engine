@@ -16,5 +16,9 @@
   ],
   "verification": {
     "mode": "series"
-  }
+  },
+  "markers": [
+    "skip-session-management",
+    "audio session users"
+  ]
 }

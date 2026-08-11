@@ -91,6 +91,15 @@ export function loadPatch(id) {
     files: [],
     verification: raw.verification ?? { mode: 'series' },
     scope,
+    // Rendering options exist purely to reproduce the bytes the forks carry
+    // today (tools/lib/render.js). `asymmetry` is prose about how the OTHER
+    // platform solves the same problem, surfaced in the generated fork header.
+    // `markers` are the strings a SHIPPED artifact must contain to prove the
+    // patch survived stripping; it defaults to the single apply-time marker.
+    render: raw.render ?? {},
+    asymmetry: raw.asymmetry ?? null,
+    markers: raw.markers ?? null,
+    markersNote: raw.markersNote ?? null,
   };
 
   if (status === 'reserved') {
@@ -155,6 +164,16 @@ export function loadPatch(id) {
 
   for (const a of patch.assets) {
     if (!existsSync(join(dir, a.from))) throw new PatchError(`${id}: asset \`${a.from}\` not found`);
+  }
+  // Shipped-artifact markers. An EMPTY list is allowed — plenty of patches
+  // leave no greppable string, and 002's whole content is deletion — but it
+  // must say why, or `verify-artifacts` would silently check nothing for it.
+  if (patch.markers === null) {
+    patch.markers = patch.marker ? [patch.marker] : [];
+  } else if (!Array.isArray(patch.markers)) {
+    throw new PatchError(`${id}: \`markers\` must be an array`);
+  } else if (patch.markers.length === 0 && !patch.markersNote) {
+    throw new PatchError(`${id}: \`markers\` is empty and no \`markersNote\` explains why — never a silent gap`);
   }
   if (!['series', 'declared-only'].includes(patch.verification.mode)) {
     throw new PatchError(`${id}: unknown verification mode "${patch.verification.mode}"`);

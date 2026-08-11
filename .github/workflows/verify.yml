@@ -69,3 +69,44 @@ jobs:
         run: |
           ./workshop render-diff 003-pcm-tap > /dev/null
           ./workshop render-diff 002-remove-libass > /dev/null
+
+  fork-sync:
+    name: Forks match the canonical patches
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The other half of D2: the workshop GENERATES the forks' patch files, so a
+    # fork edited in place — or a canonical patch changed without a sync — is
+    # drift, and drift is a red build HERE. The fork CIs are deliberately not
+    # touched: they keep building their own sources, and this repo owns the
+    # question of whether those sources are the ones it generated.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Cache upstream sources
+        uses: actions/cache@v4
+        with:
+          path: .cache/sources
+          key: sources-${{ hashFiles('manifest/engine.json') }}
+          restore-keys: sources-
+
+      # Shallow, branch head, no history: the check only ever reads the patch
+      # directories. A pinned SHA would go stale the moment a fork lands
+      # anything, and the question being asked is about the branch as it is now.
+      - name: Clone the forks (shallow, branch head)
+        run: |
+          git clone --depth 1 --branch rn-media-hls \
+            https://github.com/afkcodes/libmpv-android-audio-build.git /tmp/fork-android
+          git clone --depth 1 --branch rn-media-hls \
+            https://github.com/afkcodes/libmpv-darwin-build.git /tmp/fork-darwin
+          echo "android: $(git -C /tmp/fork-android rev-parse --short HEAD)"
+          echo "darwin:  $(git -C /tmp/fork-darwin rev-parse --short HEAD)"
+
+      - name: workshop sync --check
+        env:
+          WORKSHOP_FORK_ANDROID: /tmp/fork-android
+          WORKSHOP_FORK_DARWIN: /tmp/fork-darwin
+        run: ./workshop sync --check

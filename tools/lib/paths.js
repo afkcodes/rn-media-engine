@@ -10,6 +10,7 @@ export const MANIFEST_DIR = join(ROOT, 'manifest');
 export const ENGINE_MANIFEST = join(MANIFEST_DIR, 'engine.json');
 export const FLAGS_MANIFEST = join(MANIFEST_DIR, 'flags.json');
 export const SERIES_MANIFEST = join(MANIFEST_DIR, 'series.json');
+export const FORKS_MANIFEST = join(MANIFEST_DIR, 'forks.json');
 export const TESTS_DIR = join(ROOT, 'tests');
 
 /**

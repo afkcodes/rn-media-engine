@@ -22,5 +22,8 @@
   ],
   "verification": {
     "mode": "series"
-  }
+  },
+  "asymmetry": "darwin-only BY MECHANISM, not by need. The Android fork solves the same problem — keeping the static archives' symbols out of libmpv's export table — with BUILD FLAGS rather than a patch: buildscripts/scripts/mpv.sh passes -Wl,--version-script=include/mpv.ver and -Wl,--exclude-libs=ALL. There is deliberately no Android counterpart to this file. The two export lists live side by side in rn-media-engine assets/export-lists/ (mpv.ver: wildcard mpv_*, 55 exported; mpv.exp: 54 exact names) and the 55-vs-54 delta is mpv_lavc_set_java_vm, added by 001-lavc-set-java-vm.",
+  "markers": [],
+  "markersNote": "The effect IS the export table, so there is nothing to grep: asserted by the exports and export-purity categories, which compare the shipped symbol set against assets/export-lists/mpv.exp."
 }

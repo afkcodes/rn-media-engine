@@ -7,7 +7,7 @@
 // check-upstream.mjs at once.
 
 import { readFileSync } from 'node:fs';
-import { ENGINE_MANIFEST, FLAGS_MANIFEST, SERIES_MANIFEST } from './paths.js';
+import { ENGINE_MANIFEST, FLAGS_MANIFEST, FORKS_MANIFEST, SERIES_MANIFEST } from './paths.js';
 
 export class ManifestError extends Error {}
 
@@ -42,6 +42,19 @@ export function loadFlags() {
   if (m.schema !== 1) throw new ManifestError(`manifest/flags.json: unsupported schema ${m.schema}`);
   for (const tool of ['ffmpeg', 'mpv']) {
     if (!m[tool]?.scopes) throw new ManifestError(`flags.json: no \`${tool}.scopes\``);
+  }
+  return m;
+}
+
+export function loadForks() {
+  const m = read(FORKS_MANIFEST, 'manifest/forks.json');
+  if (m.schema !== 1) throw new ManifestError(`manifest/forks.json: unsupported schema ${m.schema}`);
+  for (const [name, fork] of Object.entries(m.forks ?? {})) {
+    for (const field of ['repo', 'branch', 'platform', 'patchDir', 'defaultLocalPath']) {
+      if (!fork[field]) throw new ManifestError(`forks.json: ${name} is missing \`${field}\``);
+    }
+    if (!fork.appliedBy?.default) throw new ManifestError(`forks.json: ${name} needs \`appliedBy.default\``);
+    if (!fork.files || Object.keys(fork.files).length === 0) throw new ManifestError(`forks.json: ${name} maps no files`);
   }
   return m;
 }

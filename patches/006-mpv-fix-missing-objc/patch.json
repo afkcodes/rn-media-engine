@@ -16,5 +16,7 @@
   ],
   "verification": {
     "mode": "series"
-  }
+  },
+  "markers": [],
+  "markersNote": "A meson-level build fix with no runtime footprint: it only makes add_languages('objc') run, without which ao_audiounit.m is never compiled. Its effect is asserted by the audio-output category — if this patch had not applied, the audiounit AO would be missing entirely."
 }

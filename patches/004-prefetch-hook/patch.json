@@ -67,5 +67,15 @@
       "pristineFile": "fragments/command.h-mp-hook-exists-decl.pristine.txt",
       "patchedFile": "fragments/command.h-mp-hook-exists-decl.patched.txt"
     }
+  ],
+  "render": {
+    "hunkFuncContext": false,
+    "note": "The fork copies of this patch carry BARE hunk headers (`@@ -1278,11 +1278,93 @@`), while 003's carry git's function context. Different tooling produced the two. Recorded so `workshop sync` reproduces each file byte-for-byte on the first run instead of rewriting a body it did not change; once both are generated this can be normalised away. Its hunk headers are also counted from the tree with 002 and 003 ALREADY APPLIED (its position in the series), where 003's are counted from pristine — hence render.base.",
+    "base": "series"
+  },
+  "markers": [
+    "[rn-media] prefetch hook resolved: ",
+    "on_prefetch_load",
+    "prefetch-playlist-entry-id"
   ]
 }

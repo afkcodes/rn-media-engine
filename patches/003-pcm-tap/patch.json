@@ -67,5 +67,9 @@
       "pristineFile": "fragments/command.c-property-table.pristine.txt",
       "patchedFile": "fragments/command.c-property-table.patched.txt"
     }
+  ],
+  "markers": [
+    "[rn-media] pcm-tap window=",
+    "pcm-tap-frame"
   ]
 }

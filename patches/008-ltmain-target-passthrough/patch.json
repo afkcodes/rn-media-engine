@@ -19,5 +19,7 @@
   ],
   "verification": {
     "mode": "series"
-  }
+  },
+  "markers": [],
+  "markersNote": "Build tooling: it patches libtool inside four dependency trees so cross-compilation targets the right triple. Nothing of it survives into any shipped binary, by design."
 }
