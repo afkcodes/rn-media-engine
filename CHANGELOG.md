@@ -4,6 +4,81 @@ This repository's own version, tracked **independently** of the mpv it patches.
 The workshop is a tool; the engine versions it pins live in
 `manifest/engine.json`.
 
+## 0.4.0 — 2026-08-12
+
+The parity release's engine side (rn-media task #32). Six divergences the
+workshop had been tracking as `bug` are now closed; the manifests record what
+changed, and the schema's own rule — parity is the ABSENCE of a divergence
+entry — is what removes them.
+
+### Resolved (both forks changed; see `flags.json` → `resolved`)
+
+* **Cover art** — darwin's audio flavour gains 8 image decoders (`bmp gif
+  jpeg2000 jpegls mjpeg png tiff webp`). Eight, not Android's nine:
+  `--enable-decoder=ljpeg` matches nothing in any FFmpeg, so it was **deleted
+  from Android** rather than copied to darwin.
+* **TrueHD / DTS-HD** — darwin gains `--enable-decoder=truehd` and
+  `--enable-demuxer=dtshd`; it already had the truehd demuxer, so a `.thd`
+  demuxed and then failed to decode.
+* **zlib** — Android gains `--enable-zlib` (Matroska compressed track headers).
+  Free: the NDK sysroot ships `zlib.h` and `libz.so` at API 21.
+* **LGPL polarity** — darwin now *asserts* `--disable-gpl --disable-nonfree`
+  rather than leaving them commented out.
+* **Dead flags** — `--enable-decoder=ljpeg`, `--enable-protocol=srt` (Android)
+  and `--enable-protocol=hls` (both) deleted rather than propagated. The
+  option-semantics audit now reports **190 of 190** component flags resolving
+  against FFmpeg 8.1.2 *and* against master, where it was 190 of 193.
+* **iconv** — aligned **down**: darwin now passes `-Diconv=disabled`, matching
+  Android. Decided on evidence, not preference — Android builds at API 21 and
+  bionic only gained `iconv(3)` at API 28, so enabling it there needs minSdk 28
+  (dropping Android 5–8) or vendoring GNU libiconv. And with `uchardet` disabled
+  and `--metadata-codepage` unset on both forks, `mp_iconv_to_utf8()` returns its
+  buffer untouched anyway, so it was inert on iOS. **The loss, exactly:** neither
+  platform can now apply an explicit `--metadata-codepage`.
+* **mbedTLS** — both forks to **3.6.7**, the current 3.6 LTS point release
+  (2026-07-07, resolved from the Mbed-TLS releases API). darwin moves from
+  3.4.1 and switches to the official release tarball, because from 3.6 on a bare
+  `/archive/` snapshot needs `make_generated_files.py` before it will build.
+* **libxml2** — both forks to **2.15.3** (resolved from gitlab.gnome.org tags;
+  still ships autotools, which both builds need — checked against the tree).
+* **Patch application** — darwin applies the **whole** series with `--fuzz=0
+  --no-backup-if-mismatch`, in every derivation that patches, not just the one
+  prefetch-hook line. Verified: all six mpv patches apply at `--fuzz=0` in
+  derivation order, leaving zero `.orig` files.
+
+### Still open, deliberately
+
+* `libxml2-scope` — the version skew is closed but the SCOPE difference is not,
+  and the evidence sharpened while fixing the versions: libxml2 in libavformat
+  serves only the DASH demuxer, and Android does not enable that demuxer, so the
+  shipped Android audio artifact links an **XML parser nothing can reach**. The
+  fix is to drop `--enable-libxml2` from Android, not to add it to darwin. Not
+  folded in here because it changes what ships rather than aligning it.
+* `ffmpeg-image-encoders`, `mpv-exhaustive-disable-list`, `source-integrity`,
+  `ios-simulator-has-no-audio-output` — unchanged; the last stays `bug` because
+  the manifest tracks what SHIPS and no release carries `ff0fb70` yet.
+
+### Changed
+
+* Both anchored patches now render with **one** convention. The
+  `render.hunkFuncContext` / `render.base` options that existed only to
+  reproduce the forks' pre-generation bytes are deleted. Seven hunk headers
+  changed in the prefetch-hook file, **zero** content lines, and both series
+  still apply.
+
+### Fixed
+
+* **The flag extractor read flags out of prose.** The darwin nix files use
+  backtick shell comments (`` -Dfoo=bar `# why` ``), and the new iconv rationale
+  quotes `-Diconv=enabled` while the build passes `disabled` — which the
+  generator dutifully believed. It now strips comments before extracting. Caught
+  because the regenerated manifest disagreed with the source.
+* **`WORK_DIR` is now process-private.** `clearWork()` removes the directory
+  whole, so two concurrent runs could delete each other's in-flight scratch
+  trees. `node --test` runs files in parallel and the equivalence suite's
+  cleanup raced the sync suite's render, producing two different renders of one
+  patch. Caught by the byte-stability test, which is exactly what it is for.
+
 ## 0.3.0 — 2026-08-12
 
 Phases 2 and 3: the workshop now GENERATES the forks' patch files, and checks the

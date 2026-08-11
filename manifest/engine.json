@@ -29,7 +29,7 @@
       "id": "libxml2-scope",
       "status": "bug",
       "ref": "rn-media task #32",
-      "reason": "Android passes --enable-libxml2 for every build; darwin passes it only in `video_common_options`, so the shipped audio dylib has no libxml2 and the audio artifacts differ in linked dependencies. Tracked as a flag divergence in manifest/flags.json; recorded here because it is why libxml2's version skew matters less on darwin than the raw numbers suggest."
+      "reason": "Android passes --enable-libxml2 for every build; darwin passes it only in `video_common_options`, so the shipped audio dylib has no libxml2 and the audio artifacts differ in linked dependencies. Tracked as a flag divergence in manifest/flags.json; recorded here because it is why libxml2's version skew matters less on darwin than the raw numbers suggest. UPDATE (parity release): the VERSION skew is resolved -- both forks are on 2.15.3 -- but the SCOPE difference remains and is now the whole of this entry. Evidence sharpened while fixing the versions: libxml2 in libavformat serves only the DASH demuxer, and the Android fork does not enable that demuxer, so it links an XML parser nothing can reach. The fix is to drop --enable-libxml2 from Android, not to add it to darwin."
     },
     {
       "id": "ios-simulator-has-no-audio-output",
@@ -37,7 +37,8 @@
       "ref": "rn-media task #32; found by `workshop verify-artifacts` against v0.7.2-rnmedia.5",
       "reason": "The iOS SIMULATOR slice of Mpv.xcframework is built with every audio output disabled, so libmpv cannot play audio in the Simulator. The device slice (ios-arm64) is correct. Proven by the shipped binary's own embedded meson line: `-Daudiounit=disabled -Davfoundation=disabled -Daudiotrack=disabled -Daaudio=disabled -Dcoreaudio=disabled -Dopensles=disabled`. Cause: nix/packages/mk-pkg-mpv/default.nix gates IOS_OPTIONS (-Daudiounit=enabled) on `os == oses.ios`, but the simulator builds under a THIRD os value, oses.iossimulator, so it matches neither the macos nor the ios branch and falls through to DISABLE_ALL_OPTIONS. The same repo already handles this correctly in mk-out-frameworks/default.nix:83 (`[ $os == $oses.ios ] || [ $os == $oses.iossimulator ]`), so the fix is to use that idiom in the mpv derivation too. Parity impact: Android's x86/x86_64 EMULATOR ABIs do carry audiotrack, so audio works in the Android emulator and not in the iOS Simulator \u2014 a developer-facing parity gap under CLAUDE.md. Patch 007-mpv-audiounit-shared-session is also absent from that slice as a consequence, because ao_audiounit.m is never compiled into it.",
       "fix": "LANDED on libmpv-darwin-build@rn-media-hls as ff0fb7005dd6ccc1e367a325c68fe4dbe5d90695 \u2014 nix/packages/mk-pkg-mpv/default.nix now tests `os == ios || os == iossimulator`, the same idiom mk-out-frameworks/default.nix:83 already used. One line of behaviour, no tag, no release. Darwin CI green on that sha (run 31524321963), and its build log shows `audiounit : enabled` for all three Apple targets including both simulator ones, where before it was disabled. It ships with the next darwin release (rn-media task #32, the parity release). Until that release exists, `workshop verify-artifacts --darwin-tag v0.7.2-rnmedia.5` STAYS RED by design: that tag was built before the fix and the check reports what SHIPPED, not what is fixed in source. Do not loosen it; re-run against the new tag.",
-      "expectedAfterFix": "MEASURED, not predicted \u2014 the CI artifact from run 31524321963 was downloaded and probed directly. On the darwin/ios-arm64_x86_64-simulator/Mpv slice: `audio-output` flips to PASS (the `audiounit` AO string is present, twice \u2014 once per arch of the fat binary \u2014 and none of avfoundation/coreaudio/audiotrack/aaudio/opensles is built in), and `patch-markers` flips to PASS (007-mpv-audiounit-shared-session's `skip-session-management` and `audio session users` both appear, because ao_audiounit.m is compiled into that slice for the FIRST time). Its embedded meson line now reads -Daudiounit=enabled. SIZE: the simulator slice grows 5,527,008 -> 5,548,256 bytes (+21,248 B, +0.38%), which is the AO and its Objective-C implementation entering the binary twice over \u2014 that is the fix landing and must NOT be read as a size regression. The DEVICE slice is byte-for-byte the same size (2,676,128 B before and after), which is the regression signal that the change touched only the simulator path."
+      "expectedAfterFix": "MEASURED, not predicted \u2014 the CI artifact from run 31524321963 was downloaded and probed directly. On the darwin/ios-arm64_x86_64-simulator/Mpv slice: `audio-output` flips to PASS (the `audiounit` AO string is present, twice \u2014 once per arch of the fat binary \u2014 and none of avfoundation/coreaudio/audiotrack/aaudio/opensles is built in), and `patch-markers` flips to PASS (007-mpv-audiounit-shared-session's `skip-session-management` and `audio session users` both appear, because ao_audiounit.m is compiled into that slice for the FIRST time). Its embedded meson line now reads -Daudiounit=enabled. SIZE: the simulator slice grows 5,527,008 -> 5,548,256 bytes (+21,248 B, +0.38%), which is the AO and its Objective-C implementation entering the binary twice over \u2014 that is the fix landing and must NOT be read as a size regression. The DEVICE slice is byte-for-byte the same size (2,676,128 B before and after), which is the regression signal that the change touched only the simulator path.",
+      "statusNote": "Deliberately still `bug`. The fix is in source (ff0fb70) but no release carries it yet, and this manifest tracks what SHIPS. It moves to resolvedDivergences once a release built after that commit exists and `workshop verify-artifacts` is green against it."
     }
   ],
   "dependencies": {
@@ -131,27 +132,22 @@
       },
       "pins": {
         "android": {
-          "version": "3.6.1",
+          "version": "3.6.7",
           "fetch": "git-tag",
-          "ref": "v3.6.1",
-          "url": "https://github.com/Mbed-TLS/mbedtls/archive/refs/tags/v3.6.1.tar.gz",
-          "sha256": "e3650e1a2adb506a721ba67ccf0041b2b78bca6979daaebced5b3454275be8b6",
-          "pinNote": "The TLS stack that terminates every HTTPS/HLS connection."
+          "ref": "v3.6.7",
+          "url": "https://github.com/Mbed-TLS/mbedtls/archive/refs/tags/v3.6.7.tar.gz",
+          "sha256": "7312b70b067b6a271961c8d36c3b8f9ba3e86fe6b26f18af13cd70430ee52ed1",
+          "pinNote": "The TLS stack that terminates every HTTPS/HLS connection. 3.6.7 is the current 3.6 LTS point release (2026-07-07), resolved from the Mbed-TLS releases API. Both platforms now run the same one."
         },
         "darwin": {
-          "version": "3.4.1",
+          "version": "3.6.7",
           "fetch": "tarball",
-          "url": "https://github.com/Mbed-TLS/mbedtls/archive/refs/tags/v3.4.1.tar.gz",
-          "sha256": "a420fcf7103e54e775c383e3751729b8fb2dcd087f6165befd13f28315f754f5",
-          "pinNote": "Inherited from upstream libmpv-darwin-build and never bumped with the Android side."
+          "url": "https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-3.6.7/mbedtls-3.6.7.tar.bz2",
+          "sha256": "a7e8bcbec0e6f761b4af24f25677626b35f762f68eef79c08677a363212d11f6",
+          "pinNote": "Same release as Android, from the official RELEASE tarball rather than a GitHub /archive/ snapshot: from 3.6 on, a bare snapshot needs scripts/make_generated_files.py (Python + jinja2) run before it builds, and this fork builds mbedTLS as a CMake subproject with no generation step. The release tarball ships those generated files."
         }
       },
-      "divergence": {
-        "kind": "version",
-        "status": "bug",
-        "ref": "rn-media task #32",
-        "reason": "iOS is two minor versions behind Android on the TLS library that terminates every HTTPS and HLS connection. This is a security-relevant lag, not a compatibility choice: nothing in the darwin build requires 3.4.1. Fix by bumping darwin to 3.6.1 and re-running the full verification playbook."
-      }
+      "divergence": null
     },
     "libxml2": {
       "role": "audio-core-android-only",
@@ -164,27 +160,22 @@
       },
       "pins": {
         "android": {
-          "version": "2.10.3",
+          "version": "2.15.3",
           "fetch": "git-tag",
-          "ref": "v2.10.3",
-          "url": "https://download.gnome.org/sources/libxml2/2.10/libxml2-2.10.3.tar.xz",
-          "sha256": "5d2cc3d78bec3dbe212a9d7fa629ada25a7da928af432c93060ff5c17ee28a9c",
-          "pinNote": "Android passes --enable-libxml2 for every build, so this is linked into the shipped audio engine."
+          "ref": "v2.15.3",
+          "url": "https://download.gnome.org/sources/libxml2/2.15/libxml2-2.15.3.tar.xz",
+          "sha256": "78262a6e7ac170d6528ebfe2efccdf220191a5af6a6cd61ea4a9a9a5042c7a07",
+          "pinNote": "Aligned with darwin at 2.15.3 (current stable, resolved from gitlab.gnome.org tags; still ships autotools, which this fork's libxml2.sh needs). NOTE: this fork passes --enable-libxml2 on every build, but libxml2 in libavformat serves only the DASH demuxer and this fork does not enable that demuxer, so the shipped audio artifact links an XML parser nothing can reach. Dropping it is a separate change; see repoDivergences/libxml2-scope."
         },
         "darwin": {
-          "version": "2.11.5",
+          "version": "2.15.3",
           "fetch": "tarball",
-          "url": "https://download.gnome.org/sources/libxml2/2.11/libxml2-2.11.5.tar.xz",
-          "sha256": "3727b078c360ec69fa869de14bd6f75d7ee8d36987b071e6928d4720a28df3a6",
-          "pinNote": "Built, but only reachable in the VIDEO variant: --enable-libxml2 lives in darwin's video_common_options, so the shipped audio dylib does not link it. See repoDivergences/libxml2-scope."
+          "url": "https://download.gnome.org/sources/libxml2/2.15/libxml2-2.15.3.tar.xz",
+          "sha256": "78262a6e7ac170d6528ebfe2efccdf220191a5af6a6cd61ea4a9a9a5042c7a07",
+          "pinNote": "Aligned with Android at 2.15.3. Reachable only in the VIDEO variant here (--enable-libxml2 lives in video_common_options), so the shipped audio dylib does not link it."
         }
       },
-      "divergence": {
-        "kind": "version",
-        "status": "bug",
-        "ref": "rn-media task #32",
-        "reason": "Android pins 2.10.3, darwin 2.11.5 \u2014 one release line apart, in opposite directions to the mbedTLS skew, and neither was a decision. Not previously named anywhere. Converge both on one line; the newer one unless the Android DASH/XML path regresses."
-      }
+      "divergence": null
     },
     "fastFloat": {
       "role": "libplacebo-submodule",
@@ -623,5 +614,19 @@
         "reason": "Platform-native toolchain. Pinned in a workflow file and a config file rather than in a manifest, which is itself worth fixing but is not a version divergence."
       }
     }
-  }
+  },
+  "resolvedDivergences": [
+    {
+      "id": "mbedtls",
+      "was": "version/bug \u2014 android 3.6.1, darwin 3.4.1",
+      "resolvedBy": "rn-media task #32 (parity release): both forks pinned to 3.6.7, the current 3.6 LTS point release.",
+      "note": "The manifests treat parity as the ABSENCE of a divergence entry -- `workshop verify` fails on a declared divergence that is no longer measured -- so the entry is deleted rather than flipped to a \"resolved\" status. This list is the record."
+    },
+    {
+      "id": "libxml2-version",
+      "was": "version/bug \u2014 android 2.10.3, darwin 2.11.5",
+      "resolvedBy": "rn-media task #32 (parity release): both forks pinned to 2.15.3.",
+      "note": "The SCOPE divergence (Android links it into every build, darwin only into video) is NOT resolved and remains as repoDivergences/libxml2-scope."
+    }
+  ]
 }

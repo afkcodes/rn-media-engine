@@ -69,6 +69,8 @@
     "scopes": {
       "shared": {
         "audio": [
+          "--disable-gpl",
+          "--disable-nonfree",
           "--disable-shared",
           "--enable-avcodec",
           "--enable-avfilter",
@@ -79,24 +81,33 @@
           "--enable-decoder=als",
           "--enable-decoder=ape",
           "--enable-decoder=atrac*",
+          "--enable-decoder=bmp",
           "--enable-decoder=dca",
           "--enable-decoder=dsd*",
           "--enable-decoder=eac3",
           "--enable-decoder=flac",
+          "--enable-decoder=gif",
           "--enable-decoder=gsm*",
+          "--enable-decoder=jpeg2000",
+          "--enable-decoder=jpegls",
+          "--enable-decoder=mjpeg",
           "--enable-decoder=mp1*",
           "--enable-decoder=mp2*",
           "--enable-decoder=mp3*",
           "--enable-decoder=mpc*",
           "--enable-decoder=opus",
           "--enable-decoder=pcm*",
+          "--enable-decoder=png",
           "--enable-decoder=ra*",
           "--enable-decoder=ralf",
           "--enable-decoder=shorten",
           "--enable-decoder=tak",
+          "--enable-decoder=tiff",
+          "--enable-decoder=truehd",
           "--enable-decoder=tta",
           "--enable-decoder=vorbis",
           "--enable-decoder=wavpack",
+          "--enable-decoder=webp",
           "--enable-decoder=wma*",
           "--enable-demuxer=aac",
           "--enable-demuxer=ac3",
@@ -107,6 +118,7 @@
           "--enable-demuxer=avi",
           "--enable-demuxer=dsf",
           "--enable-demuxer=dts",
+          "--enable-demuxer=dtshd",
           "--enable-demuxer=flac",
           "--enable-demuxer=flv",
           "--enable-demuxer=hls",
@@ -163,7 +175,6 @@
           "--enable-protocol=ffrtmphttp",
           "--enable-protocol=file",
           "--enable-protocol=ftp",
-          "--enable-protocol=hls",
           "--enable-protocol=http",
           "--enable-protocol=httpproxy",
           "--enable-protocol=https",
@@ -179,7 +190,8 @@
           "--enable-small",
           "--enable-swresample",
           "--enable-swscale",
-          "--enable-version3"
+          "--enable-version3",
+          "--enable-zlib"
         ]
       },
       "android": {
@@ -195,13 +207,11 @@
           "--disable-dxva2",
           "--disable-encoders",
           "--disable-filters",
-          "--disable-gpl",
           "--disable-gray",
           "--disable-iconv",
           "--disable-linux-perf",
           "--disable-mediacodec",
           "--disable-muxers",
-          "--disable-nonfree",
           "--disable-parsers",
           "--disable-programs",
           "--disable-protocols",
@@ -211,17 +221,6 @@
           "--disable-videotoolbox",
           "--disable-vulkan",
           "--enable-avutil",
-          "--enable-decoder=bmp",
-          "--enable-decoder=gif",
-          "--enable-decoder=jpeg2000",
-          "--enable-decoder=jpegls",
-          "--enable-decoder=ljpeg",
-          "--enable-decoder=mjpeg",
-          "--enable-decoder=png",
-          "--enable-decoder=tiff",
-          "--enable-decoder=truehd",
-          "--enable-decoder=webp",
-          "--enable-demuxer=dtshd",
           "--enable-encoder=jpeg2000",
           "--enable-encoder=jpegls",
           "--enable-encoder=ljpeg",
@@ -230,7 +229,6 @@
           "--enable-hwaccels",
           "--enable-jni",
           "--enable-libxml2",
-          "--enable-protocol=srt",
           "--enable-runtime-cpudetect",
           "--enable-static"
         ]
@@ -252,8 +250,7 @@
           "--enable-pthreads",
           "--enable-safe-bitstream-reader",
           "--enable-shared",
-          "--enable-stripping",
-          "--enable-zlib"
+          "--enable-stripping"
         ],
         "video": [
           "--enable-decoder=ass",
@@ -426,32 +423,6 @@
         ]
       },
       {
-        "id": "ffmpeg-lgpl-polarity",
-        "status": "bug",
-        "ref": "rn-media task #32; research 5.3",
-        "reason": "Android ASSERTS --disable-gpl --disable-nonfree; darwin merely omits --enable-gpl (they sit commented out at meson.build:59-60). The outcome is the same today, but only by omission: darwin also carries a live `encodersgpl` flavour whose video_encodersgpl_options really does pass --enable-gpl, and the only thing keeping GPL out of the shipped iOS artifact is a Makefile default target string ending in `-default`. A grep for --disable-gpl finds one fork and not the other. Make the assertion symmetric, and assert it on the artifact rather than the flag list.",
-        "flags": [
-          "--disable-gpl",
-          "--disable-nonfree"
-        ]
-      },
-      {
-        "id": "ffmpeg-cover-art-decoders",
-        "status": "bug",
-        "ref": "rn-media task #32; research 5.4",
-        "reason": "PARITY GATE. Android enables nine image decoders in its audio flavour; darwin enables NONE (mjpeg appears only inside video_default_options). Embedded album art is decoded by exactly these, so cover art that renders on Android is expected to fail on iOS. CLAUDE.md makes feature parity a gate, so this is a bug against the mission, not a size trade-off. Fix by adding the set to darwin audio_default_options.",
-        "flags": [
-          "--enable-decoder=bmp",
-          "--enable-decoder=gif",
-          "--enable-decoder=jpeg2000",
-          "--enable-decoder=jpegls",
-          "--enable-decoder=mjpeg",
-          "--enable-decoder=png",
-          "--enable-decoder=tiff",
-          "--enable-decoder=webp"
-        ]
-      },
-      {
         "id": "ffmpeg-image-encoders",
         "status": "bug",
         "ref": "rn-media task #32",
@@ -465,16 +436,6 @@
         ]
       },
       {
-        "id": "ffmpeg-lossless-audio",
-        "status": "bug",
-        "ref": "rn-media task #32; research 5.4",
-        "reason": "PARITY GATE. Darwin has --enable-demuxer=truehd and --enable-decoder=dca but NO truehd decoder and no dtshd demuxer, so a .thd file demuxes on iOS and then fails to decode. Android has both. Provenance of the Android side is upstream commit eb0af4e \"Enable truehd decoder in ffmpeg script\", which was never mirrored to darwin.",
-        "flags": [
-          "--enable-decoder=truehd",
-          "--enable-demuxer=dtshd"
-        ]
-      },
-      {
         "id": "ffmpeg-libxml2",
         "status": "bug",
         "ref": "rn-media task #32; manifest/engine.json repoDivergences/libxml2-scope",
@@ -482,25 +443,33 @@
         "flags": [
           "--enable-libxml2"
         ]
+      }
+    ],
+    "resolved": [
+      {
+        "id": "ffmpeg-cover-art-decoders",
+        "release": "rn-media task #32 (parity release)",
+        "how": "darwin audio_default_options gained bmp gif jpeg2000 jpegls mjpeg png tiff webp. EIGHT, not the nine Android had: --enable-decoder=ljpeg matches nothing in any FFmpeg (ljpeg is an encoder only) and was deleted from Android rather than copied here."
+      },
+      {
+        "id": "ffmpeg-lossless-audio",
+        "release": "rn-media task #32 (parity release)",
+        "how": "darwin gained --enable-decoder=truehd and --enable-demuxer=dtshd; it already had the truehd demuxer and the dca decoder, so a .thd demuxed and then failed to decode."
       },
       {
         "id": "ffmpeg-zlib",
-        "status": "bug",
-        "ref": "rn-media task #32",
-        "reason": "Darwin passes --enable-zlib in audio_common_options; Android passes nothing, and with --disable-autodetect absent it relies on the NDK not offering it. zlib in libavformat is what decompresses Matroska compressed track headers, so a .mka using header compression is a candidate for behaving differently on the two platforms. Not previously named anywhere. Decide and converge.",
-        "flags": [
-          "--enable-zlib"
-        ]
+        "release": "rn-media task #32 (parity release)",
+        "how": "Android gained --enable-zlib (Matroska compressed track headers). Free: the NDK sysroot ships zlib.h and libz.so at API 21, so it adds one DT_NEEDED and no vendored source."
+      },
+      {
+        "id": "ffmpeg-lgpl-polarity",
+        "release": "rn-media task #32 (parity release)",
+        "how": "darwin common_options now ASSERTS --disable-gpl --disable-nonfree instead of leaving them commented out. Both forks now state the licence rather than one stating it and the other omitting the opposite."
       },
       {
         "id": "ffmpeg-dead-flags",
-        "status": "intentional",
-        "ref": "libmpv-android-audio-build buildscripts/scripts/ffmpeg.sh (FFmpeg 6.0 -> 8.1.2 comment)",
-        "reason": "Both match nothing in FFmpeg 8.1.2 and configure says so out loud: \"Option --enable-decoder=ljpeg did not match anything\" (ljpeg is an encoder only; mjpeg decodes it) and \"--enable-protocol=srt did not match anything\" (needs external libsrt, not linked). Darwin already commented out its srt line. Kept on the Android side so the engine-bump diff stays about the bump; deleting them is a separate cosmetic change.",
-        "flags": [
-          "--enable-decoder=ljpeg",
-          "--enable-protocol=srt"
-        ]
+        "release": "rn-media task #32 (parity release)",
+        "how": "Deleted on BOTH forks rather than propagated: --enable-decoder=ljpeg and --enable-protocol=srt (Android), --enable-protocol=hls (both). All three matched nothing in FFmpeg 8.1.2 and configure warned about them on every build."
       }
     ]
   },
@@ -520,6 +489,7 @@
           "-Dgl=disabled",
           "-Dgpl=false",
           "-Dhtml-build=disabled",
+          "-Diconv=disabled",
           "-Djavascript=disabled",
           "-Djpeg=disabled",
           "-Dlcms2=disabled",
@@ -543,8 +513,7 @@
       },
       "android": {
         "audio": [
-          "-Daudiotrack=enabled",
-          "-Diconv=disabled"
+          "-Daudiotrack=enabled"
         ]
       },
       "darwin": {
@@ -583,7 +552,6 @@
           "-Dgl-dxinterop=disabled",
           "-Dgl-win32=disabled",
           "-Dgl-x11=disabled",
-          "-Diconv=enabled",
           "-Dios-gl=disabled",
           "-Djack=disabled",
           "-Dmacos-10-15-4-features=disabled",
@@ -638,16 +606,6 @@
           "-Daudiotrack=enabled",
           "-Daudiotrack=disabled",
           "-Daudiounit=enabled"
-        ]
-      },
-      {
-        "id": "mpv-iconv",
-        "status": "bug",
-        "ref": "rn-media task #32",
-        "reason": "Android passes -Diconv=disabled, darwin -Diconv=enabled. iconv is what mpv uses to transcode non-UTF-8 text, which for an audio engine means legacy ID3v1/ID3v2 tag charsets (Shift-JIS, CP1251, GBK). So a track whose artist name is CP1251 is likely to read correctly on iOS and be mojibake on Android. Not previously named anywhere; found by comparing the two option sets for this manifest. PARITY GATE either way: pick one and make both do it.",
-        "flags": [
-          "-Diconv=disabled",
-          "-Diconv=enabled"
         ]
       },
       {
@@ -730,6 +688,13 @@
           "-Dx11=disabled",
           "-Dxv=disabled"
         ]
+      }
+    ],
+    "resolved": [
+      {
+        "id": "mpv-iconv",
+        "release": "rn-media task #32 (parity release)",
+        "how": "Aligned DOWN: darwin now passes -Diconv=disabled, matching Android. Android builds at API 21 and bionic only gained iconv(3) at API 28, so enabling it there would need minSdk 28 (dropping Android 5-8) or vendoring GNU libiconv. With uchardet disabled and --metadata-codepage unset on both forks, mp_iconv_to_utf8() returns its buffer untouched anyway, so this was inert on iOS. THE LOSS: neither platform can now apply an explicit --metadata-codepage. Restoring it on BOTH is tracked in rn-media task #32."
       }
     ],
     "notes": [

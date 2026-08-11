@@ -36,7 +36,16 @@ export const TREE_CACHE = join(CACHE, 'trees');
  * any repo by construction, and diffpatch.js refuses to run when it detects a
  * non-empty git prefix anyway.
  */
-export const WORK_DIR = process.env.WORKSHOP_WORK || join(tmpdir(), `rn-media-engine-work-${process.getuid?.() ?? 0}`);
+/**
+ * Per-PROCESS, not just per-user. `clearWork()` removes this directory whole,
+ * so two workshop runs sharing one path means either can delete the scratch
+ * tree the other is mid-render on. That is not hypothetical: `node --test` runs
+ * test files in parallel, and the equivalence suite's cleanup raced the sync
+ * suite's render, producing two different renders of the same patch and failing
+ * the byte-stability assertion. Making it private to the process is what the
+ * "disposable scratch copy" contract implied all along.
+ */
+export const WORK_DIR = process.env.WORKSHOP_WORK || join(tmpdir(), `rn-media-engine-work-${process.getuid?.() ?? 0}-${process.pid}`);
 
 /** @param {string} abs */
 export function rel(abs) {
