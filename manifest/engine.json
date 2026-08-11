@@ -18,17 +18,7 @@
     "android",
     "darwin"
   ],
-  "repoDivergences": [
-    {
-      "id": "ios-simulator-has-no-audio-output",
-      "status": "bug",
-      "ref": "rn-media task #32; found by `workshop verify-artifacts` against v0.7.2-rnmedia.5",
-      "reason": "The iOS SIMULATOR slice of Mpv.xcframework is built with every audio output disabled, so libmpv cannot play audio in the Simulator. The device slice (ios-arm64) is correct. Proven by the shipped binary's own embedded meson line: `-Daudiounit=disabled -Davfoundation=disabled -Daudiotrack=disabled -Daaudio=disabled -Dcoreaudio=disabled -Dopensles=disabled`. Cause: nix/packages/mk-pkg-mpv/default.nix gates IOS_OPTIONS (-Daudiounit=enabled) on `os == oses.ios`, but the simulator builds under a THIRD os value, oses.iossimulator, so it matches neither the macos nor the ios branch and falls through to DISABLE_ALL_OPTIONS. The same repo already handles this correctly in mk-out-frameworks/default.nix:83 (`[ $os == $oses.ios ] || [ $os == $oses.iossimulator ]`), so the fix is to use that idiom in the mpv derivation too. Parity impact: Android's x86/x86_64 EMULATOR ABIs do carry audiotrack, so audio works in the Android emulator and not in the iOS Simulator \u2014 a developer-facing parity gap under CLAUDE.md. Patch 007-mpv-audiounit-shared-session is also absent from that slice as a consequence, because ao_audiounit.m is never compiled into it.",
-      "fix": "LANDED on libmpv-darwin-build@rn-media-hls as ff0fb7005dd6ccc1e367a325c68fe4dbe5d90695 \u2014 nix/packages/mk-pkg-mpv/default.nix now tests `os == ios || os == iossimulator`, the same idiom mk-out-frameworks/default.nix:83 already used. One line of behaviour, no tag, no release. Darwin CI green on that sha (run 31524321963), and its build log shows `audiounit : enabled` for all three Apple targets including both simulator ones, where before it was disabled. It ships with the next darwin release (rn-media task #32, the parity release). Until that release exists, `workshop verify-artifacts --darwin-tag v0.7.2-rnmedia.5` STAYS RED by design: that tag was built before the fix and the check reports what SHIPPED, not what is fixed in source. Do not loosen it; re-run against the new tag.",
-      "expectedAfterFix": "MEASURED, not predicted \u2014 the CI artifact from run 31524321963 was downloaded and probed directly. On the darwin/ios-arm64_x86_64-simulator/Mpv slice: `audio-output` flips to PASS (the `audiounit` AO string is present, twice \u2014 once per arch of the fat binary \u2014 and none of avfoundation/coreaudio/audiotrack/aaudio/opensles is built in), and `patch-markers` flips to PASS (007-mpv-audiounit-shared-session's `skip-session-management` and `audio session users` both appear, because ao_audiounit.m is compiled into that slice for the FIRST time). Its embedded meson line now reads -Daudiounit=enabled. SIZE: the simulator slice grows 5,527,008 -> 5,548,256 bytes (+21,248 B, +0.38%), which is the AO and its Objective-C implementation entering the binary twice over \u2014 that is the fix landing and must NOT be read as a size regression. The DEVICE slice is byte-for-byte the same size (2,676,128 B before and after), which is the regression signal that the change touched only the simulator path.",
-      "statusNote": "Deliberately still `bug`. The fix is in source (ff0fb70) but no release carries it yet, and this manifest tracks what SHIPS. It moves to resolvedDivergences once a release built after that commit exists and `workshop verify-artifacts` is green against it."
-    }
-  ],
+  "repoDivergences": [],
   "dependencies": {
     "mpv": {
       "role": "audio-core",
@@ -657,6 +647,12 @@
       "was": "repo/bug \u2014 the Android fork fetched every source as a shallow clone of a MUTABLE TAG and verified nothing, while darwin carried a sha256 on all 22 of its sources",
       "resolvedBy": "rn-media task #32 (parity release): every Android source is verified after fetching. Git clones assert the expected COMMIT (content-addressed, so re-pointing a tag cannot change what a SHA resolves to); libiconv, the one real tarball, is checked with sha256sum -c.",
       "note": "Commit assertion rather than a switch to tarballs, deliberately: libplacebo needs five submodules and release tarballs ship those directories EMPTY, so tarballs would have broken the build to fix the provenance. media-kit-android-helper was additionally pinned from the moving `main` branch to a commit -- two builds a week apart could previously package different helper code with no version change anywhere."
+    },
+    {
+      "id": "ios-simulator-has-no-audio-output",
+      "was": "repo/bug \u2014 the iOS Simulator slice of Mpv.xcframework shipped with every audio output disabled, so libmpv could not play audio in the Simulator at all; the device slice was always fine",
+      "resolvedBy": "Fixed in source at libmpv-darwin-build ff0fb7005dd6ccc1e367a325c68fe4dbe5d90695 (mk-pkg-mpv/default.nix now tests `os == ios || os == iossimulator`, the idiom mk-out-frameworks/default.nix:83 already used) and SHIPPED in release v0.7.2-rnmedia.6.",
+      "note": "Verified on the released artifact by `workshop verify-artifacts --darwin-tag v0.7.2-rnmedia.6`: the simulator slice's audio-output and patch-markers cells both PASS where they were the only two FAILs in the matrix. audiounit is present with none of avfoundation/coreaudio/audiotrack/aaudio/opensles built in, and patch 007's markers appear because ao_audiounit.m is compiled into that slice for the first time. The slice grew 5,527,008 -> 5,548,640 bytes; the device slice is unchanged in capability."
     }
   ]
 }

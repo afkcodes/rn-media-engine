@@ -4,6 +4,41 @@ This repository's own version, tracked **independently** of the mpv it patches.
 The workshop is a tool; the engine versions it pins live in
 `manifest/engine.json`.
 
+## 0.6.0 — 2026-08-12
+
+The parity release shipped. **Tracked bugs: 13 → 0.**
+
+Both forks released in lockstep, and both verified against the canonical matrix
+*after* release rather than before:
+
+* Android **[v1.1.9-rnmedia.7](https://github.com/afkcodes/libmpv-android-audio-build/releases/tag/v1.1.9-rnmedia.7)** @ `4200e83`
+* iOS **[v0.7.2-rnmedia.6](https://github.com/afkcodes/libmpv-darwin-build/releases/tag/v0.7.2-rnmedia.6)** @ `96334d4`
+
+```
+workshop verify-artifacts --android-tag v1.1.9-rnmedia.7 --darwin-tag v0.7.2-rnmedia.6
+12 slices x 10 categories = 120 cells: 50 pass, 0 FAIL, 46 n/a (each with a reason), 24 informational
+GREEN — every shipped slice satisfies every applicable category.
+```
+
+### Resolved
+
+* `ios-simulator-has-no-audio-output` — shipped in `v0.7.2-rnmedia.6`. The two
+  cells that were the matrix's only FAILs (`audio-output`, `patch-markers` on
+  the simulator slice) are now PASS on the released artifact.
+
+That was the last entry. `workshop status` reports **0** divergences marked
+`bug`; every remaining platform difference is declared intentional, and the
+whole of the mpv difference is `audiotrack` vs `audiounit`.
+
+### Note for the record
+
+Four Android fork commits reported green CI while producing no engine at all —
+`bundle.sh` had no `set -e`, so a failed mpv configure still exited 0 with
+480 KB artifacts where a real build is ~15 MB. Now guarded three ways:
+`set -euo pipefail`, a per-jar assertion that `lib/<abi>/libmpv.so` is present,
+and an independent size check in the workflow itself. **A green checkmark is not
+an artifact** — the artifact is.
+
 ## 0.5.0 — 2026-08-12
 
 True parity. 0.4.0 closed six divergences but closed two of them by taking
